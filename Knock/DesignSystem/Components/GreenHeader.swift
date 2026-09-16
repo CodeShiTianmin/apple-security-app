@@ -18,8 +18,8 @@ struct AvatarView: View {
                 if let isOnline {
                     Circle()
                         .fill(isOnline ? KnockColor.online : KnockColor.offline)
-                        .frame(width: size * 0.26, height: size * 0.26)
-                        .overlay(Circle().stroke(.white, lineWidth: 1.5))
+                        .frame(width: size * 0.3, height: size * 0.3)
+                        .overlay(Circle().stroke(.white, lineWidth: 2))
                 }
             }
     }
@@ -51,11 +51,11 @@ struct UserHeader: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 Button(action: onAvatarTap) {
-                    AvatarView(asset: user.avatarAsset, size: 46, isOnline: isOnline)
+                    AvatarView(asset: user.avatarAsset, size: 40, isOnline: isOnline)
                 }
                 .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
                         Text("\(user.name)님")
                             .font(KnockFont.medium(18))
@@ -63,13 +63,14 @@ struct UserHeader: View {
                         PillBadge(
                             text: isOnline ? "ONLINE" : "OFFLINE",
                             foreground: isOnline ? KnockColor.textPrimary : KnockColor.dangerText,
-                            background: isOnline ? KnockColor.cardTint : KnockColor.dangerBadge,
-                            font: KnockFont.medium(11)
+                            background: isOnline ? KnockColor.cardTint : KnockColor.dangerSoft,
+                            horizontalPadding: 10,
+                            radius: 10
                         )
                     }
                     Text(user.region)
                         .font(KnockFont.regular(12))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(.white)
                 }
                 Spacer()
                 if let trailing { trailing }
@@ -78,8 +79,8 @@ struct UserHeader: View {
                 .font(KnockFont.medium(14))
                 .foregroundStyle(.white)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .padding(.horizontal, 24)
+        .padding(.top, 12)
         .padding(.bottom, 20)
     }
 }
@@ -122,53 +123,81 @@ struct GreenScaffold<Header: View, Content: View>: View {
 /// 하단 4탭 커스텀 탭바
 struct KnockTabBar: View {
     @Binding var selection: MainTab
-    var badge: [MainTab: Int] = [:]
 
     var body: some View {
-        HStack {
+        HStack(spacing: 0) {
             ForEach(MainTab.allCases) { tab in
                 Button {
                     withAnimation(.spring(duration: 0.3)) { selection = tab }
                 } label: {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: icon(for: tab))
-                            .font(.system(size: 22, weight: .regular))
-                            .foregroundStyle(selection == tab ? KnockColor.primary : KnockColor.textMuted)
-                            .frame(width: 64, height: 48)
-                            .background {
-                                if selection == tab {
-                                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                        .fill(KnockColor.cardTint2)
-                                }
+                    TabIcon(tab: tab, color: selection == tab ? KnockColor.tabIconActive : KnockColor.tabIconInactive)
+                        .frame(width: 24, height: 24)
+                        .frame(width: 60, height: 44)
+                        .background {
+                            if selection == tab {
+                                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                    .fill(KnockColor.cardTint2)
                             }
-                        if let count = badge[tab], count > 0 {
-                            Text("\(count)")
-                                .font(KnockFont.semibold(10))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 5).padding(.vertical, 2)
-                                .background(KnockColor.warning, in: Capsule())
-                                .offset(x: -6, y: 4)
                         }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .accessibilityLabel(tab.title)
+                        .frame(maxWidth: .infinity, alignment: alignment(for: tab))
+                        .accessibilityLabel(tab.title)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 4)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
         .background(KnockColor.background)
+        .overlay(alignment: .top) { Rectangle().fill(KnockColor.tabBorder).frame(height: 1) }
     }
 
-    private func icon(for tab: MainTab) -> String {
+    private func alignment(for tab: MainTab) -> Alignment {
         switch tab {
-        case .home: return "square.grid.2x2.fill"
-        case .stats: return "chart.bar.fill"
-        case .health: return "heart"
-        case .family: return "person"
+        case .home: return .leading
+        case .family: return .trailing
+        default: return .center
         }
+    }
+}
+
+/// 탭바 아이콘 (디자인 벡터 재현: 24×24)
+struct TabIcon: View {
+    var tab: MainTab
+    var color: Color
+
+    var body: some View {
+        switch tab {
+        case .home:
+            VStack(spacing: 4) {
+                HStack(spacing: 4) { square; square }
+                HStack(spacing: 4) { square; square }
+            }
+        case .stats:
+            HStack(alignment: .bottom, spacing: 3) {
+                bar(10); bar(20); bar(14)
+            }
+        case .health:
+            Image(systemName: "heart")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(color)
+        case .family:
+            VStack(spacing: 1) {
+                Circle().stroke(color, lineWidth: 2).frame(width: 8, height: 8)
+                UnevenRoundedRectangle(topLeadingRadius: 8, bottomLeadingRadius: 3,
+                                       bottomTrailingRadius: 3, topTrailingRadius: 8)
+                    .stroke(color, lineWidth: 2)
+                    .frame(width: 16, height: 10)
+            }
+        }
+    }
+
+    private var square: some View {
+        RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 8, height: 8)
+    }
+
+    private func bar(_ height: CGFloat) -> some View {
+        Capsule().fill(color).frame(width: 4, height: height)
     }
 }
 

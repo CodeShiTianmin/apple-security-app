@@ -24,6 +24,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var path: [SettingsRoute] = []
     @State private var showLogoutConfirm = false
+    @State private var showNotifications = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -71,6 +72,10 @@ struct SettingsView: View {
                         NavigationLink(value: SettingsRoute.emergencyMessage) { SettingsRow(title: "비상 연락문자 편집") }
                         Divider()
                         NavigationLink(value: SettingsRoute.notificationSettings) { SettingsRow(title: "알림 설정") }
+                        Divider()
+                        Button { showNotifications = true } label: {
+                            SettingsRow(title: "받은 알림", value: appState.unreadNotifications > 0 ? "\(appState.unreadNotifications)개 안 읽음" : nil)
+                        }
                     }
                     Divider()
 
@@ -93,6 +98,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } }
             }
+            .sheet(isPresented: $showNotifications) { NotificationsView() }
             .navigationDestination(for: SettingsRoute.self) { route in
                 destination(route)
                     .navigationBarBackButtonHidden()

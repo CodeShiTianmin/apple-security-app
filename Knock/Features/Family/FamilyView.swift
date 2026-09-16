@@ -10,40 +10,43 @@ struct FamilyView: View {
 
     var body: some View {
         GreenScaffold {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("똑똑똑").font(KnockFont.bold(28)).foregroundStyle(.white)
+                    Text("똑똑똑").font(KnockFont.medium(24)).foregroundStyle(.white)
                     Spacer()
                     HeaderActions(showSettings: $showSettings)
                 }
+                .frame(height: 36)
                 Text("나의 가족 생존 기록").font(KnockFont.medium(18)).foregroundStyle(.white)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
+                    HStack(spacing: 16) {
                         Button { showInvite = true } label: {
-                            AvatarView(asset: appState.user.avatarAsset, size: 58, ring: .white)
+                            AvatarView(asset: appState.user.avatarAsset, size: 52, ring: .clear)
                                 .overlay(alignment: .bottomTrailing) {
                                     Image(systemName: "plus")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 20, height: 20)
-                                        .background(KnockColor.primaryDark, in: Circle())
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(KnockColor.primaryDark)
+                                        .frame(width: 24, height: 24)
+                                        .background(KnockColor.cardTint3, in: Circle())
+                                        .overlay(Circle().stroke(.white, lineWidth: 2))
+                                        .offset(x: 4, y: 8)
                                 }
                         }
                         .buttonStyle(.plain)
                         ForEach(appState.members) { m in
                             Button { selectedMember = m } label: {
-                                AvatarView(asset: m.avatarAsset, size: 58, isOnline: m.isOnline, ring: .white)
+                                AvatarView(asset: m.avatarAsset, size: 52, isOnline: m.isOnline, ring: .clear)
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.bottom, 12)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 20)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 16)
         } content: {
             VStack(spacing: 0) {
                 if appState.members.isEmpty {
@@ -64,27 +67,29 @@ struct FamilyView: View {
                 Image("mascot_family")
                     .resizable()
                     .scaledToFit()
-                    .frame(height: 110)
-                    .padding(.top, 24)
+                    .frame(width: 156, height: 82)
+                    .padding(.top, 12)
 
-                HStack(spacing: 0) {
+                HStack(spacing: 40) {
                     Button { showChat = true } label: {
                         Image(systemName: "ellipsis.message")
-                            .font(.system(size: 22))
-                            .frame(width: 60, height: 44)
+                            .font(.system(size: 20))
+                            .frame(width: 24, height: 24)
                     }
-                    Rectangle().fill(KnockColor.primary.opacity(0.3)).frame(width: 1, height: 24)
                     Button { showActivities = true } label: {
                         Image(systemName: "person.2")
-                            .font(.system(size: 22))
-                            .frame(width: 60, height: 44)
+                            .font(.system(size: 20))
+                            .frame(width: 24, height: 24)
                     }
                 }
-                .foregroundStyle(KnockColor.primaryDark)
+                .foregroundStyle(KnockColor.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 .background(KnockColor.cardTint, in: Capsule())
                 .padding(.top, 12)
             }
             .padding(.top, 8)
+            .padding(.bottom, 16)
         }
         .sheet(item: $selectedMember) { m in FamilyMemberDetailView(member: m) }
         .sheet(isPresented: $showInvite) { InviteFamilyView() }
@@ -97,26 +102,24 @@ struct FamilyMemberRow: View {
     var member: FamilyMember
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            AvatarView(asset: member.avatarAsset, size: 56, isOnline: member.isOnline, ring: KnockColor.cardTint)
+        HStack(alignment: .center, spacing: 12) {
+            AvatarView(asset: member.avatarAsset, size: 48, isOnline: member.isOnline, ring: .clear)
             VStack(alignment: .leading, spacing: 4) {
-                Text(member.name).font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
-                Text(member.activityTitle).font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
-                if let detail = member.activityDetail {
-                    Text(detail).font(KnockFont.regular(14)).foregroundStyle(KnockColor.textMuted).lineSpacing(2)
+                HStack {
+                    Text(member.name).font(KnockFont.medium(18)).foregroundStyle(KnockColor.textPrimary)
+                    Spacer()
+                    if member.unreadCount > 0 {
+                        PillBadge(text: "\(member.unreadCount)", foreground: KnockColor.dangerText, background: KnockColor.dangerSoft)
+                    }
                 }
-            }
-            Spacer()
-            if member.unreadCount > 0 {
-                Text("\(member.unreadCount)")
-                    .font(KnockFont.medium(13))
-                    .foregroundStyle(KnockColor.dangerText)
-                    .frame(width: 32, height: 32)
-                    .background(KnockColor.dangerBadge, in: Circle())
+                Text(member.activityTitle).font(KnockFont.medium(12)).foregroundStyle(KnockColor.textSecondary)
+                if let detail = member.activityDetail {
+                    Text(detail).font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary).lineSpacing(2)
+                }
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 18)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
     }
 }
@@ -173,7 +176,7 @@ struct FamilyMemberDetailView: View {
                             .foregroundStyle(KnockColor.textPrimary)
                             CheckInCalendarGrid(monthStart: month, streakDays: member.streakDays)
                             Text("\(member.streakDays)일 연속 출석 중")
-                                .font(KnockFont.medium(13)).foregroundStyle(KnockColor.textPrimary)
+                                .font(KnockFont.medium(16)).foregroundStyle(KnockColor.textPrimary)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -291,7 +294,7 @@ struct CheckInCalendarGrid: View {
         VStack(spacing: 8) {
             HStack {
                 ForEach(Array(symbols.enumerated()), id: \.offset) { _, s in
-                    Text(s).font(KnockFont.medium(11)).foregroundStyle(KnockColor.textSecondary).frame(maxWidth: .infinity)
+                    Text(s).font(KnockFont.medium(14)).foregroundStyle(KnockColor.textSecondary).frame(maxWidth: .infinity)
                 }
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 8) {
@@ -311,9 +314,9 @@ struct CheckInCalendarGrid: View {
 
     private func cellView(_ n: Int, checked: Bool, muted: Bool) -> some View {
         Text("\(n)")
-            .font(KnockFont.medium(12))
+            .font(KnockFont.medium(14))
             .foregroundStyle(muted ? KnockColor.textDisabled : KnockColor.textPrimary)
-            .frame(width: 30, height: 22)
-            .background { if checked { Capsule().fill(KnockColor.lime2) } }
+            .frame(width: 40, height: 22)
+            .background { if checked { RoundedRectangle(cornerRadius: 12).fill(KnockColor.lime2) } }
     }
 }
