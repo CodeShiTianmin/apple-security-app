@@ -20,24 +20,25 @@ struct StressStatsView: View {
     var body: some View {
         GreenScaffold {
             UserHeader(user: appState.user, isOnline: true,
-                       trailing: AnyView(HeaderActions(showSettings: $showSettings)),
                        onAvatarTap: { showSettings = true })
         } content: {
-            VStack(spacing: 18) {
+            VStack(spacing: 12) {
                 HStack {
                     Text("일별 스트레스 통계")
-                        .font(KnockFont.bold(24))
+                        .font(KnockFont.medium(22))
                         .foregroundStyle(KnockColor.textPrimary)
                     Spacer()
-                    Image("mascot_stats_small").resizable().scaledToFit().frame(height: 56)
+                    Image("mascot_stats_small").resizable().scaledToFit().frame(width: 80, height: 60)
                 }
+                .frame(height: 64)
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
                 SegmentedPill(items: StatsPeriod.allCases.map { ($0, $0.title) }, selection: $period)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
 
                 DateNavigator(title: rangeTitle, onPrevious: { shift(-1) }, onNext: { shift(1) })
+                    .padding(.horizontal, 20)
 
                 switch period {
                 case .week: WeekStressSection(start: anchor)
@@ -45,6 +46,7 @@ struct StressStatsView: View {
                 case .year: YearStressSection(year: Calendar.current.component(.year, from: anchor))
                 }
             }
+            .padding(.bottom, 16)
             .animation(.easeInOut(duration: 0.25), value: period)
         }
     }
@@ -84,25 +86,25 @@ struct WeekStressSection: View {
     private let summary = MockData.weekSummary
 
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 14) {
+        VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 HStack {
-                    Text("일별 스트레스 상태 추이").font(KnockFont.medium(16)).foregroundStyle(KnockColor.textPrimary)
+                    Text("일별 스트레스 상태 추이").font(KnockFont.medium(14)).foregroundStyle(KnockColor.textPrimary)
                     Spacer()
-                    Text("주간 캘린더").font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
+                    Text("주간 캘린더").font(KnockFont.regular(12)).foregroundStyle(KnockColor.primary)
                 }
                 HStack(spacing: 0) {
                     ForEach(Array(days.enumerated()), id: \.element.id) { i, day in
                         VStack(spacing: 8) {
-                            Text(symbols[i % symbols.count]).font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
+                            Text(symbols[i % symbols.count]).font(KnockFont.medium(12)).foregroundStyle(KnockColor.textSecondary)
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(day.level.color)
-                                .frame(width: 34, height: 34)
+                                .frame(width: 28, height: 28)
                                 .overlay {
                                     if day.level == .none {
                                         Text("\(Calendar.current.component(.day, from: day.date))")
                                             .font(KnockFont.medium(12))
-                                            .foregroundStyle(KnockColor.textSecondary)
+                                            .foregroundStyle(KnockColor.textMuted)
                                     }
                                 }
                         }
@@ -110,32 +112,27 @@ struct WeekStressSection: View {
                     }
                 }
             }
-            .padding(16)
+            .padding(12)
             .background(KnockColor.cardTint, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .padding(.horizontal, 16)
-
-            HStack(spacing: 16) {
-                StressCountBlock(title: "스트레스 낮음", days: summary.lowStressDays, delta: summary.lowDelta)
-                StressCountBlock(title: "스트레스 높음", days: summary.highStressDays, delta: summary.highDelta)
-            }
+            .knockShadow(radius: 16, y: 4)
             .padding(.horizontal, 20)
 
-            StressBarChart(days: days)
-                .frame(height: 170)
-                .padding(.horizontal, 20)
-
-            StressLegend()
-                .padding(.horizontal, 20)
-
-            Text(summary.comment)
-                .font(KnockFont.regular(13))
-                .foregroundStyle(KnockColor.textSecondary)
-                .lineSpacing(4)
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(KnockColor.cardTint3, in: RoundedRectangle(cornerRadius: 16))
-                .padding(.horizontal, 16)
+            HStack(alignment: .top, spacing: 16) {
+                StressCountBlock(title: "스트레스 낮음", days: summary.lowStressDays, delta: summary.lowDelta,
+                                 bars: recorded.map { ($0.lowScore, $0.level.color) })
+                StressCountBlock(title: "스트레스 높음", days: summary.highStressDays, delta: summary.highDelta,
+                                 bars: recorded.map { ($0.highScore, highColor($0.highScore)) })
+            }
+            .padding(.horizontal, 20)
         }
+    }
+
+    private var recorded: [StressDay] { days.filter { $0.level != .none } }
+
+    private func highColor(_ score: Double) -> Color {
+        if score > 0.6 { return KnockColor.stressNormal }
+        if score > 0.4 { return KnockColor.stressCaution }
+        return KnockColor.stressGood
     }
 }
 
@@ -143,38 +140,33 @@ struct StressCountBlock: View {
     var title: String
     var days: Int
     var delta: Int
+    var bars: [(Double, Color)] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(KnockFont.medium(14)).foregroundStyle(KnockColor.textPrimary)
-            Text("\(days)일").font(KnockFont.bold(30)).foregroundStyle(KnockColor.textPrimary)
+            Text("\(days)일").font(KnockFont.bold(28)).foregroundStyle(KnockColor.textPrimary)
             Text("\(delta >= 0 ? "▲" : "▼") 지난주보다 \(abs(delta))일 \(delta >= 0 ? "많음" : "적음")")
                 .font(KnockFont.regular(12))
                 .foregroundStyle(KnockColor.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// 요일별 낮음/높음 스트레스 막대 그래프
-struct StressBarChart: View {
-    var days: [StressDay]
-
-    var body: some View {
-        GeometryReader { geo in
-            let h = geo.size.height
-            HStack(alignment: .bottom, spacing: 0) {
-                ForEach(days) { day in
-                    HStack(alignment: .bottom, spacing: 4) {
-                        Capsule().fill(KnockColor.primary).frame(width: 14, height: max(8, h * day.lowScore))
-                        Capsule().fill(day.highScore > 0.6 ? KnockColor.yellow : KnockColor.lavender)
-                            .frame(width: 14, height: max(8, h * day.highScore))
+            if !bars.isEmpty {
+                HStack(alignment: .bottom, spacing: 0) {
+                    ForEach(Array(bars.enumerated()), id: \.offset) { i, bar in
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(bar.1)
+                            .frame(width: 18, height: max(12, 130 * bar.0))
+                        if i != bars.count - 1 { Spacer(minLength: 0) }
                     }
-                    .frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 130, alignment: .bottom)
+                .padding(.vertical, 4)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(KnockColor.divider).frame(height: 1)
                 }
             }
-            .frame(height: h, alignment: .bottom)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

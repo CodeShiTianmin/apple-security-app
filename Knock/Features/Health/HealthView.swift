@@ -44,11 +44,9 @@ struct HealthStatusView: View {
     var body: some View {
         GreenScaffold {
             UserHeader(user: appState.user, isOnline: isGood,
-                       trailing: AnyView(HeaderActions(showSettings: $showSettings)),
                        onAvatarTap: { showSettings = true })
         } content: {
-            VStack(spacing: 24) {
-                Spacer(minLength: 40)
+            VStack(spacing: isGood ? 12 : 24) {
                 ZStack {
                     if !isGood {
                         Circle()
@@ -60,47 +58,32 @@ struct HealthStatusView: View {
                     Image(isGood ? "mascot_health_good" : "mascot_health_bad")
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 280)
                 }
-                .padding(.top, 12)
+                .frame(maxWidth: .infinity)
+                .frame(height: isGood ? 340 : 310)
+                .padding(.horizontal, 20)
+                .padding(.top, isGood ? 100 : 112)
 
                 Button { path.append(.overview) } label: {
-                    HStack(spacing: 8) {
-                        Circle().fill(isGood ? KnockColor.primaryDark : KnockColor.danger).frame(width: 12, height: 12)
-                        Text("오늘 건강 상태 : \(appState.healthOverview.condition.rawValue)")
-                            .font(KnockFont.medium(18))
-                            .foregroundStyle(isGood ? KnockColor.textPrimary : KnockColor.dangerText)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(isGood ? KnockColor.textSecondary : KnockColor.dangerText)
-                    }
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 14)
-                    .background(isGood ? KnockColor.cardTint : KnockColor.dangerSoft, in: Capsule())
-                    .knockShadow(radius: 12, y: 4, opacity: 0.1)
+                    Text("● 오늘 건강 상태 : \(appState.healthOverview.condition.rawValue)")
+                        .font(KnockFont.medium(18))
+                        .foregroundStyle(isGood ? KnockColor.textPrimary : KnockColor.danger)
+                        .frame(height: 26)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(isGood ? KnockColor.healthGoodPill : KnockColor.healthBadPill,
+                                    in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .knockShadow()
                 }
                 .buttonStyle(.pressable)
 
                 if !isGood {
                     Text("알람 뜨는중.....")
-                        .font(KnockFont.medium(18))
+                        .font(KnockFont.medium(20))
                         .foregroundStyle(KnockColor.textPrimary)
-                    Button("지금 안전 상태 확인하기") { appState.simulateDangerDetected() }
-                        .font(KnockFont.medium(14))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 22).padding(.vertical, 12)
-                        .background(KnockColor.danger, in: Capsule())
                 }
-
-                HStack(spacing: 12) {
-                    QuickStatChip(icon: "heart.fill", title: "심박수", value: "\(appState.healthOverview.heartRate) bpm") { path.append(.heartRate) }
-                    QuickStatChip(icon: "moon.fill", title: "수면", value: "\(formatted(appState.healthOverview.sleepHoursPerDay))시간") { path.append(.sleep) }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-
-                Spacer(minLength: 20)
             }
+            .padding(.bottom, 16)
         }
         .onAppear { pulse = true }
         .overlay(alignment: .bottomTrailing) {
@@ -114,37 +97,8 @@ struct HealthStatusView: View {
             }
             .accessibilityLabel("건강 상태 데모 전환")
             .padding(.trailing, 16)
-            .padding(.bottom, 8)
+            .padding(.bottom, 82)
         }
-    }
-
-    private func formatted(_ v: Double) -> String {
-        v == v.rounded() ? String(Int(v)) : String(format: "%.1f", v)
-    }
-}
-
-struct QuickStatChip: View {
-    var icon: String
-    var title: String
-    var value: String
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: icon).foregroundStyle(KnockColor.primary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(KnockFont.regular(11)).foregroundStyle(KnockColor.textSecondary)
-                    Text(value).font(KnockFont.medium(15)).foregroundStyle(KnockColor.textPrimary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.system(size: 11)).foregroundStyle(KnockColor.textMuted)
-            }
-            .padding(14)
-            .background(.white, in: RoundedRectangle(cornerRadius: 16))
-            .knockShadow(radius: 10, y: 3)
-        }
-        .buttonStyle(.pressable)
     }
 }
 
@@ -160,18 +114,17 @@ struct HealthOverviewView: View {
     var body: some View {
         GreenScaffold {
             UserHeader(user: appState.user, isOnline: true,
-                       trailing: AnyView(HeaderActions(showSettings: $showSettings)),
                        onAvatarTap: { showSettings = true })
         } content: {
             VStack(alignment: .leading, spacing: 18) {
                 // 나이팅게일 점수
                 VStack(spacing: 10) {
                     HStack {
-                        CircleIconButton(systemImage: "chevron.left") { path.removeLast() }
+                        CircleIconButton(systemImage: "chevron.left", size: 36) { path.removeLast() }
                         Spacer()
                         Text("나이팅게일 점수").font(KnockFont.medium(14)).foregroundStyle(KnockColor.textPrimary)
                         Spacer()
-                        CircleIconButton(systemImage: "ellipsis") {}
+                        CircleIconButton(systemImage: "ellipsis", size: 36) {}
                     }
                     Text(String(format: "%.1f", overview.nightingaleScore))
                         .font(KnockFont.bold(44))
@@ -180,8 +133,13 @@ struct HealthOverviewView: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity)
-                .background(KnockColor.cardTint, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .padding(.horizontal, 16)
+                .background(
+                    LinearGradient(colors: [KnockColor.cardTint2, KnockColor.cardTint3],
+                                   startPoint: .top, endPoint: .bottom),
+                    in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+                )
+                .knockShadow(radius: 18, y: 6)
+                .padding(.horizontal, 20)
                 .padding(.top, 16)
 
                 Text("나의 건강 상태")
@@ -280,8 +238,10 @@ struct WatchTile: View {
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .knockShadow(radius: 12, y: 4)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(8)
+                .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .knockShadow(radius: 18, y: 6)
         }
         .buttonStyle(.pressable)
     }

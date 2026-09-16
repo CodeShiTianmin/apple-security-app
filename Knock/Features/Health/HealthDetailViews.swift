@@ -47,7 +47,6 @@ struct SleepDetailView: View {
     var body: some View {
         GreenScaffold {
             UserHeader(user: appState.user, isOnline: true,
-                       trailing: AnyView(HeaderActions(showSettings: $showSettings)),
                        onAvatarTap: { showSettings = true })
         } content: {
             VStack(spacing: 20) {
@@ -58,28 +57,31 @@ struct SleepDetailView: View {
 
                 ZStack {
                     SleepRingView(stages: sleep.stages)
-                        .frame(width: 250, height: 250)
+                        .frame(width: 240, height: 240)
                     VStack(spacing: 2) {
-                        Text("오늘").font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary)
-                        Text("\(Int(sleep.totalHours))").font(KnockFont.bold(40)).foregroundStyle(KnockColor.textPrimary)
-                        Text("h").font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary)
+                        Text("오늘").font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
+                        Text("\(Int(sleep.totalHours))").font(KnockFont.bold(44)).foregroundStyle(KnockColor.textPrimary)
+                        Text("h").font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
                     }
                 }
-                .padding(.top, 6)
-
-                HStack(alignment: .bottom) {
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 34)
+                .overlay(alignment: .bottomLeading) {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(sleep.stages) { stage in
-                            HStack(spacing: 8) {
-                                Circle().fill(stage.kind.color).frame(width: 10, height: 10)
-                                Text(stage.name).font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary)
+                            HStack(spacing: 6) {
+                                Circle().fill(stage.kind.color).frame(width: 14, height: 14)
+                                Text(stage.name).font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
                             }
                         }
                     }
-                    Spacer()
-                    Image("mascot_sleep").resizable().scaledToFit().frame(height: 90)
+                    .padding(.leading, 24)
                 }
-                .padding(.horizontal, 24)
+                .overlay(alignment: .bottomTrailing) {
+                    Image("mascot_sleep").resizable().scaledToFit().frame(width: 96, height: 72)
+                        .padding(.trailing, 24)
+                }
+                .padding(.top, 6)
 
                 SectionCard(padding: 18) {
                     VStack(spacing: 0) {
@@ -155,7 +157,6 @@ struct HeartRateDetailView: View {
     var body: some View {
         GreenScaffold {
             UserHeader(user: appState.user, isOnline: true,
-                       trailing: AnyView(HeaderActions(showSettings: $showSettings)),
                        onAvatarTap: { showSettings = true })
         } content: {
             VStack(spacing: 20) {
@@ -169,15 +170,26 @@ struct HeartRateDetailView: View {
                             .resizable()
                             .scaledToFit()
                             .padding(.horizontal, 8)
+                            .overlay(alignment: .bottomTrailing) {
+                                Image("mascot_heart_small")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 76, height: 76)
+                                    .offset(x: 4, y: 8)
+                            }
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
                 .padding(.top, 16)
 
                 SectionCard(padding: 18) {
                     VStack(spacing: 0) {
-                        HStack {
-                            Image(systemName: "heart").font(.system(size: 20)).foregroundStyle(KnockColor.textPrimary)
+                        HStack(spacing: 12) {
+                            Image(systemName: "heart")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(KnockColor.textPrimary)
+                                .frame(width: 40, height: 40)
+                                .background(KnockColor.cardTint, in: Circle())
                             Text("심박수").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
                             Spacer()
                             Text("\(hr.current) bpm").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
@@ -191,14 +203,13 @@ struct HeartRateDetailView: View {
                         row(color: KnockColor.lavender, title: "최저 심박수", range: hr.minRange, value: hr.min)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
 
                 HStack(alignment: .bottom, spacing: 12) {
                     HeartRateSparkline()
                         .frame(height: 120)
-                    Image("mascot_heart_small").resizable().scaledToFit().frame(height: 70)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
             }
         }
     }
@@ -258,7 +269,6 @@ struct StressDetailView: View {
     var body: some View {
         GreenScaffold {
             UserHeader(user: appState.user, isOnline: true,
-                       trailing: AnyView(HeaderActions(showSettings: $showSettings)),
                        onAvatarTap: { showSettings = true })
         } content: {
             VStack(spacing: 20) {

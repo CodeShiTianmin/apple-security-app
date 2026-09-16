@@ -11,37 +11,33 @@ struct LoginLandingView: View {
         ZStack {
             Color.white.ignoresSafeArea()
             VStack(spacing: 0) {
-                Spacer()
                 Image("logo_icon")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 130)
-                Spacer()
+                    .frame(width: 129, height: 121)
+                    .padding(.top, 199)
 
-                VStack(spacing: 12) {
+                VStack(spacing: 15) {
                     SocialLoginButton(provider: .kakao) { social(.kakao) }
                     SocialLoginButton(provider: .naver) { social(.naver) }
                     SocialLoginButton(provider: .facebook) { social(.facebook) }
                     SocialLoginButton(provider: .apple) { social(.apple) }
                     SocialLoginButton(provider: .phone) { path.append(.phoneLogin) }
-                        .padding(.top, 20)
+                        .padding(.top, 33)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 22)
+                .padding(.top, 56)
+
+                Spacer(minLength: 16)
 
                 Button {
                     path.append(.idLogin)
                 } label: {
                     Text("이메일 또는 아이디로 계속하기 >")
-                        .font(KnockFont.medium(13))
+                        .font(KnockFont.semibold(13))
                         .foregroundStyle(KnockColor.textGray)
                 }
-                .padding(.top, 20)
-
-                Button("아직 계정이 없어요 · 이메일로 가입") { path.append(.emailSignup) }
-                    .font(KnockFont.medium(13))
-                    .foregroundStyle(KnockColor.primary)
-                    .padding(.top, 10)
-                    .padding(.bottom, 20)
+                .padding(.bottom, 4)
             }
             if loading { LoadingOverlay() }
         }

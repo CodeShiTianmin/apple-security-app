@@ -3,15 +3,13 @@ import MapKit
 
 struct HomeView: View {
     @Environment(AppState.self) private var appState
-    @Binding var showNotifications: Bool
     @Binding var showSettings: Bool
     @State private var showMap = false
     @State private var showDemoMenu = false
 
     var body: some View {
-        GreenScaffold(headerColor: appState.isDangerMode ? KnockColor.primary : KnockColor.primary) {
+        GreenScaffold {
             UserHeader(user: appState.user, isOnline: !appState.isDangerMode,
-                       trailing: AnyView(HeaderActions(showNotifications: $showNotifications, showSettings: $showSettings)),
                        onAvatarTap: { showSettings = true })
         } content: {
             switch appState.safety {
@@ -52,33 +50,36 @@ private struct CheckedInContent: View {
     @Binding var showMap: Bool
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 12) {
             WeeklyCalendarCard()
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
 
             Image("mascot_happy")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 170)
+                .frame(height: 200)
 
-            VStack(spacing: 10) {
+            VStack(spacing: 4) {
                 Text("체크 완료")
-                    .font(KnockFont.bold(30))
+                    .font(KnockFont.bold(38))
                     .foregroundStyle(KnockColor.textPrimary)
-                PillBadge(text: "오늘 상태 : 안전", icon: "checkmark.shield")
+                PillBadge(text: "오늘 상태 : 안전", icon: "checkmark.shield",
+                          font: KnockFont.medium(14), radius: 16, iconSize: 15)
             }
+            .padding(.vertical, 4)
 
             CountdownCard(title: "다음 알람 남은 시간", target: appState.nextReminderDate, showBell: true)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
 
             Text("체크 안 하면 비상연락처 문자 & 전화로 안내")
-                .font(KnockFont.regular(12))
+                .font(KnockFont.regular(14))
                 .foregroundStyle(KnockColor.textSecondary)
 
             FamilyMapCard(region: appState.user.region) { showMap = true }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
         }
+        .padding(.bottom, 12)
     }
 }
 
@@ -88,37 +89,37 @@ struct WeeklyCalendarCard: View {
     private let symbols = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     var body: some View {
-        SectionCard(padding: 16) {
-            VStack(spacing: 14) {
-                HStack {
-                    Text("나의 주간 캘린더")
-                        .font(KnockFont.medium(16))
-                        .foregroundStyle(KnockColor.textPrimary)
-                    Spacer()
-                    PillBadge(text: "\(appState.streakDays)일 연속 출석 중", font: KnockFont.medium(11))
-                }
-                HStack(spacing: 0) {
-                    ForEach(Array(appState.weekRecords.enumerated()), id: \.element.id) { i, record in
-                        VStack(spacing: 6) {
-                            Text(symbols[i % symbols.count])
-                                .font(KnockFont.regular(11))
-                                .foregroundStyle(KnockColor.textSecondary)
-                            ZStack {
-                                Circle()
-                                    .fill(record.completed ? KnockColor.primary : KnockColor.sheet)
-                                    .frame(width: 26, height: 26)
-                                if record.completed {
-                                    Image(systemName: record.status == .danger ? "exclamationmark" : "checkmark")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .foregroundStyle(.white)
-                                }
+        VStack(spacing: 12) {
+            HStack {
+                Text("나의 주간 캘린더")
+                    .font(KnockFont.medium(18))
+                    .foregroundStyle(KnockColor.textPrimary)
+                Spacer()
+                PillBadge(text: "\(appState.streakDays)일 연속 출석 중")
+            }
+            .padding(.vertical, 2)
+            HStack(spacing: 0) {
+                ForEach(Array(appState.weekRecords.enumerated()), id: \.element.id) { i, record in
+                    VStack(spacing: 4) {
+                        Text(symbols[i % symbols.count])
+                            .font(KnockFont.medium(12))
+                            .foregroundStyle(KnockColor.textSecondary)
+                        ZStack {
+                            Circle()
+                                .fill(record.completed ? KnockColor.primary : KnockColor.pendingDay)
+                                .frame(width: 28, height: 28)
+                            if record.completed {
+                                Image(systemName: record.status == .danger ? "exclamationmark" : "checkmark")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(.white)
                             }
-                            Text("\(Calendar.current.component(.day, from: record.date))")
-                                .font(KnockFont.regular(11))
-                                .foregroundStyle(record.completed ? KnockColor.textPrimary : KnockColor.textDisabled)
                         }
-                        .frame(maxWidth: .infinity)
+                        Text("\(Calendar.current.component(.day, from: record.date))")
+                            .font(KnockFont.medium(12))
+                            .foregroundStyle(record.completed ? KnockColor.textPrimary : KnockColor.textMuted)
                     }
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -134,27 +135,33 @@ struct CountdownCard: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 Text(title)
                     .font(KnockFont.medium(14))
                     .foregroundStyle(KnockColor.textPrimary)
-                HStack(spacing: 10) {
+                HStack(spacing: 16) {
                     Text(formatted(now: context.date))
                         .font(KnockFont.bold(38))
                         .monospacedDigit()
                         .foregroundStyle(accent)
                     if showBell {
                         Image(systemName: "bell")
-                            .font(.system(size: 22))
-                            .foregroundStyle(KnockColor.primary)
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(KnockColor.textPrimary)
+                            .frame(width: 24, height: 24)
                     }
                 }
+                .frame(height: 50)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(KnockColor.cardTint, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .padding(.horizontal, 16)
+            .padding(.vertical, verticalPadding)
+            .background(KnockColor.cardTint2, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .knockShadow()
         }
     }
+
+    var verticalPadding: CGFloat = 8
 
     private func formatted(now: Date) -> String {
         guard let target else { return "00 : 00" }
@@ -172,32 +179,34 @@ struct FamilyMapCard: View {
     var action: () -> Void
 
     var body: some View {
-        SectionCard(padding: 14) {
-            VStack(spacing: 10) {
-                HStack {
-                    Text("우리 가족 위치").font(KnockFont.medium(14)).foregroundStyle(KnockColor.textPrimary)
-                    Spacer()
-                    Text(region).font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
-                }
-                Button(action: action) {
-                    Image("map_preview")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 120)
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(alignment: .bottomTrailing) {
-                            Text("지도 열기")
-                                .font(KnockFont.medium(10))
-                                .foregroundStyle(KnockColor.link)
-                                .padding(.horizontal, 8).padding(.vertical, 4)
-                                .background(.white, in: Capsule())
-                                .padding(8)
-                        }
-                }
-                .buttonStyle(.pressable)
+        VStack(spacing: 10) {
+            HStack {
+                Text("우리 가족 위치").font(KnockFont.medium(14)).foregroundStyle(KnockColor.primaryDark2)
+                Spacer()
+                Text(region).font(KnockFont.regular(12)).foregroundStyle(KnockColor.textRegion)
             }
+            .frame(height: 22)
+            Button(action: action) {
+                Image("map_preview")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 132)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(alignment: .bottomTrailing) {
+                        Text("지도 열기")
+                            .font(KnockFont.bold(8))
+                            .foregroundStyle(KnockColor.link)
+                            .padding(.horizontal, 6).padding(.vertical, 3)
+                            .background(.white, in: Capsule())
+                            .padding(8)
+                    }
+            }
+            .buttonStyle(.pressable)
         }
+        .padding(12)
+        .padding(.bottom, 4)
+        .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -212,29 +221,31 @@ private struct CheckPendingContent: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 12) {
             Image(appState.isDangerMode ? "mascot_worried" : "mascot_happy")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 230)
-                .padding(.top, 24)
+                .frame(maxWidth: .infinity)
+                .frame(height: 266)
+                .padding(.top, 20)
 
             Text("오늘 체크")
-                .font(KnockFont.bold(30))
+                .font(KnockFont.bold(32))
                 .foregroundStyle(KnockColor.textPrimary)
+                .frame(height: 40)
 
             Button {
                 appState.checkIn()
             } label: {
                 Text("오늘 체크")
-                    .font(KnockFont.medium(18))
+                    .font(KnockFont.medium(20))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 62)
-                    .background(KnockColor.yellow, in: Capsule())
+                    .frame(height: 56)
+                    .background(KnockColor.yellow, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
             }
             .buttonStyle(.pressable)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
 
             PillBadge(
                 text: appState.isDangerMode ? "오늘 상태 : 위험" : "오늘 상태 : 확인 전",
@@ -244,12 +255,13 @@ private struct CheckPendingContent: View {
 
             CountdownCard(title: appState.isDangerMode ? "비상 연락까지 남은 시간" : "다음 알람 남은 시간",
                           target: deadline ?? appState.nextReminderDate)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
 
             Text("체크 안 하면 비상연락처 문자 & 전화로 안내")
-                .font(KnockFont.regular(12))
+                .font(KnockFont.regular(14))
                 .foregroundStyle(KnockColor.textSecondary)
         }
+        .padding(.bottom, 16)
     }
 }
 
@@ -260,35 +272,37 @@ private struct EmergencyContactingContent: View {
     @State private var showCancelConfirm = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .top) {
+        VStack(spacing: 12) {
+            HStack(alignment: .center) {
                 Text("비상 연락 진행중")
-                    .font(KnockFont.bold(24))
+                    .font(KnockFont.medium(22))
                     .foregroundStyle(KnockColor.textPrimary)
                 Spacer()
-                Image("mascot_alert_small").resizable().scaledToFit().frame(height: 80)
+                Image("mascot_alert_small").resizable().scaledToFit().frame(width: 96, height: 80)
             }
+            .frame(height: 96)
             .padding(.horizontal, 20)
             .padding(.top, 20)
 
             ForEach(appState.emergencyContacts) { contact in
                 EmergencyContactRow(contact: contact)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
             }
 
             CountdownCard(title: "다음 연락 시도 까지",
-                          target: Date.now.addingTimeInterval(59))
-                .padding(.horizontal, 16)
+                          target: Date.now.addingTimeInterval(59), verticalPadding: 12)
+                .padding(.horizontal, 20)
 
             PrimaryButton(title: "저는 안전해요 · 연락 중단", style: .green) { showCancelConfirm = true }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
                 .padding(.top, 8)
 
             Text("등록된 순서대로 문자와 전화로 안내하고 있어요.\n연결되면 자동으로 다음 연락처로 넘어가지 않아요.")
-                .font(KnockFont.regular(12))
+                .font(KnockFont.regular(14))
                 .foregroundStyle(KnockColor.textSecondary)
                 .multilineTextAlignment(.center)
         }
+        .padding(.bottom, 16)
         .confirmationDialog("안전 상태를 확인할까요?", isPresented: $showCancelConfirm, titleVisibility: .visible) {
             Button("네, 안전해요") { appState.cancelEmergency() }
             Button("취소", role: .cancel) {}
@@ -302,19 +316,23 @@ struct EmergencyContactRow: View {
     var contact: EmergencyContact
 
     var body: some View {
-        SectionCard(padding: 16) {
-            HStack(spacing: 14) {
-                Text("\(contact.priority)")
-                    .font(KnockFont.bold(26))
-                    .foregroundStyle(KnockColor.textPrimary)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(contact.name).font(KnockFont.medium(16)).foregroundStyle(KnockColor.textPrimary)
-                    Text(contact.phone).font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary)
-                }
-                Spacer()
-                stateBadge
+        HStack(spacing: 12) {
+            Text("\(contact.priority)")
+                .font(KnockFont.bold(28))
+                .foregroundStyle(KnockColor.textPrimary)
+                .frame(minWidth: 17)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(contact.name).font(KnockFont.medium(16)).foregroundStyle(KnockColor.textPrimary)
+                Text(contact.phone).font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
             }
+            Spacer()
+            stateBadge
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 16)
+        .frame(height: 76)
+        .background(.white, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .knockShadow()
     }
 
     @ViewBuilder private var stateBadge: some View {
@@ -322,7 +340,7 @@ struct EmergencyContactRow: View {
         case .contacting:
             PillBadge(text: "연락중...", foreground: KnockColor.textPrimary, background: KnockColor.yellow)
         case .waiting:
-            PillBadge(text: "대기중...", foreground: KnockColor.textSecondary, background: KnockColor.sheet)
+            PillBadge(text: "대기중...", foreground: KnockColor.textMuted, background: KnockColor.waitingBadge)
         case .reached:
             PillBadge(text: "연결됨", foreground: .white, background: KnockColor.primary, icon: "checkmark")
         case .failed:
@@ -338,44 +356,50 @@ struct SafetyAlertOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45).ignoresSafeArea()
+            KnockColor.modalDim.opacity(0.62).ignoresSafeArea()
                 .onTapGesture {}
 
-            VStack(spacing: 0) {
-                VStack(spacing: 16) {
-                    Image("mascot_modal")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 130)
-                        .padding(.top, 8)
+            VStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(KnockColor.danger)
+                    .frame(width: 28, height: 28)
+                    .padding(10)
+                    .background(KnockColor.dangerSurface, in: Circle())
 
-                    Text("위험 상황으로 의심되는 상태가 감지되었습니다.\n지금 바로 안전 상태를 확인해 주세요.")
-                        .font(KnockFont.medium(15))
-                        .foregroundStyle(KnockColor.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(3)
+                Image("mascot_modal")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 128, height: 104)
 
-                    Text("\(appState.settings.graceMinutes)분 이내에 응답하지 않으면\n긴급 연락처로 자동 연락됩니다")
-                        .font(KnockFont.regular(13))
-                        .foregroundStyle(KnockColor.textSecondary)
-                        .multilineTextAlignment(.center)
+                Text("위험 상황으로 의심되는 상태가\n감지되었습니다.\n지금 바로 안전 상태를 확인해 주세요.")
+                    .font(KnockFont.medium(16))
+                    .foregroundStyle(KnockColor.primaryDark2)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .frame(maxWidth: .infinity)
 
-                    PrimaryButton(title: "안전 확인", style: .green) { appState.confirmSafe() }
-                        .frame(height: 52)
+                Text("\(appState.settings.graceMinutes)분 이내에 응답하지 않으면\n긴급 연락처로 자동 연락됩니다")
+                    .font(KnockFont.regular(14))
+                    .foregroundStyle(KnockColor.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
 
-                    Button("도움이 필요해요 · 지금 비상 연락") { appState.startEmergencyContact() }
-                        .font(KnockFont.medium(13))
-                        .foregroundStyle(KnockColor.dangerText)
+                Button { appState.confirmSafe() } label: {
+                    Text("안전 확인")
+                        .font(KnockFont.medium(18))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(KnockColor.primary, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
-                .padding(24)
-                .background(KnockColor.background, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .padding(.horizontal, 28)
-
-                Text("알람 뜨는중.....")
-                    .font(KnockFont.medium(18))
-                    .foregroundStyle(.white)
-                    .padding(.top, 24)
+                .buttonStyle(.pressable)
             }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 20)
+            .background(KnockColor.background, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .knockShadow(radius: 24, y: 8, opacity: 0.18)
+            .padding(.horizontal, 36)
         }
     }
 }

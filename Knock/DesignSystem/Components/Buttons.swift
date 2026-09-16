@@ -74,20 +74,17 @@ struct SocialLoginButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                icon
-                Text(title)
-                    .font(KnockFont.medium(16))
-                    .foregroundStyle(KnockColor.textNeutral)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(background, in: Capsule())
-            .overlay {
-                if provider == .facebook || provider == .apple || provider == .phone {
-                    Capsule().stroke(KnockColor.stroke, lineWidth: 1)
+            Text(title)
+                .font(KnockFont.semibold(15))
+                .foregroundStyle(provider == .naver ? .white : .black)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(background, in: Capsule())
+                .overlay {
+                    if provider == .facebook || provider == .apple || provider == .phone {
+                        Capsule().stroke(KnockColor.authStroke, lineWidth: 1)
+                    }
                 }
-            }
         }
         .buttonStyle(.pressable)
     }
@@ -104,19 +101,9 @@ struct SocialLoginButton: View {
 
     private var background: Color {
         switch provider {
-        case .kakao: return KnockColor.limeLight
+        case .kakao: return KnockColor.kakao
         case .naver: return KnockColor.lime
         default: return .white
-        }
-    }
-
-    @ViewBuilder private var icon: some View {
-        switch provider {
-        case .kakao: Image(systemName: "message.fill").font(.system(size: 15))
-        case .naver: Text("N").font(.system(size: 15, weight: .black))
-        case .facebook: Image(systemName: "f.circle.fill").font(.system(size: 16))
-        case .apple: Image(systemName: "apple.logo").font(.system(size: 16))
-        case .phone: Image(systemName: "iphone").font(.system(size: 16))
         }
     }
 }
@@ -124,6 +111,7 @@ struct SocialLoginButton: View {
 /// 상단 둥근 아이콘 버튼 (뒤로가기 / 더보기)
 struct CircleIconButton: View {
     var systemImage: String
+    var size: CGFloat = 40
     var action: () -> Void
 
     var body: some View {
@@ -131,7 +119,7 @@ struct CircleIconButton: View {
             Image(systemName: systemImage)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(KnockColor.primary)
-                .frame(width: 40, height: 40)
+                .frame(width: size, height: size)
                 .background(KnockColor.cardTint, in: Circle())
         }
         .buttonStyle(.pressable)
@@ -146,17 +134,21 @@ struct PillBadge: View {
     var icon: String? = nil
     var dot: Color? = nil
     var font: Font = KnockFont.medium(12)
+    var horizontalPadding: CGFloat = 12
+    var verticalPadding: CGFloat = 4
+    var radius: CGFloat = 14
+    var iconSize: CGFloat = 11
 
     var body: some View {
-        HStack(spacing: 5) {
-            if let icon { Image(systemName: icon).font(.system(size: 11, weight: .semibold)) }
+        HStack(spacing: 6) {
+            if let icon { Image(systemName: icon).font(.system(size: iconSize, weight: .semibold)) }
             if let dot { Circle().fill(dot).frame(width: 8, height: 8) }
             Text(text).font(font)
         }
         .foregroundStyle(foreground)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(background, in: Capsule())
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
+        .background(background, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 }
 
@@ -188,12 +180,13 @@ struct SegmentedPill<T: Hashable>: View {
                 } label: {
                     Text(item.1)
                         .font(KnockFont.medium(16))
-                        .foregroundStyle(selection == item.0 ? KnockColor.textPrimary : KnockColor.textSecondary)
+                        .foregroundStyle(KnockColor.textPrimary)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 40)
+                        .frame(height: 32)
                         .background {
                             if selection == item.0 {
                                 Capsule().fill(.white)
+                                    .knockShadow(radius: 8, y: 4)
                                     .matchedGeometryEffect(id: "pill", in: ns)
                             }
                         }
@@ -215,17 +208,18 @@ struct DateNavigator: View {
     var body: some View {
         HStack {
             Button(action: onPrevious) {
-                Image(systemName: "chevron.left").font(.system(size: 16, weight: .medium))
+                Image(systemName: "chevron.left").font(.system(size: 16, weight: .medium)).frame(width: 20, height: 20)
             }
             Spacer()
-            Text(title).font(KnockFont.medium(18))
+            Text(title).font(KnockFont.medium(16))
             Spacer()
             Button(action: onNext) {
-                Image(systemName: "chevron.right").font(.system(size: 16, weight: .medium))
+                Image(systemName: "chevron.right").font(.system(size: 16, weight: .medium)).frame(width: 20, height: 20)
             }
         }
-        .foregroundStyle(KnockColor.textPrimary)
-        .padding(.horizontal, 20)
+        .foregroundStyle(KnockColor.primary)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 4)
     }
 }
 
