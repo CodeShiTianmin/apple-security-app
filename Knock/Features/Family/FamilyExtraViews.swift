@@ -72,7 +72,7 @@ struct InviteFamilyView: View {
                                 .font(KnockFont.regular(12))
                                 .foregroundStyle(KnockColor.textMuted)
                             PrimaryButton(title: joinedMember == nil ? "참여하기" : "참여 완료",
-                                          isEnabled: code.count >= 6 && joinedMember == nil, style: .filled) {
+                                          isEnabled: code.filter(\.isNumber).count >= 4 && joinedMember == nil, style: .filled) {
                                 join()
                             }
                         }
