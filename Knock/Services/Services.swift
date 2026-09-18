@@ -105,7 +105,7 @@ struct LocalNotificationScheduler: NotificationScheduling {
 
 // MARK: - Persistence
 
-enum PersistenceKey: String {
+enum PersistenceKey: String, CaseIterable {
     case hasSeenOnboarding
     case isLoggedIn
     case profile
@@ -139,4 +139,5 @@ struct Persistence {
     }
 
     func remove(_ key: PersistenceKey) { defaults.removeObject(forKey: key.rawValue) }
+    func removeAll() { PersistenceKey.allCases.forEach(remove) }
 }

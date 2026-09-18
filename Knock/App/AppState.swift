@@ -106,6 +106,7 @@ final class AppState {
     init(auth: AuthServicing = MockAuthService(), scheduler: NotificationScheduling = LocalNotificationScheduler()) {
         self.auth = auth
         self.scheduler = scheduler
+        if CommandLine.arguments.contains("--demo-reset") { persistence.removeAll() }
         restore()
     }
 

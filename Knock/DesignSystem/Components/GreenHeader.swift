@@ -114,6 +114,7 @@ struct NotificationBell: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("알림 센터")
+        .accessibilityIdentifier("header.bell")
         .onChange(of: appState.unreadNotifications) { old, new in
             guard new > old else { return }
             withAnimation(.interpolatingSpring(stiffness: 260, damping: 5)) { ring = true }
@@ -183,6 +184,7 @@ struct KnockTabBar: View {
                         .accessibilityLabel(tab.title)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("tab.\(tab.title)")
             }
         }
         .padding(.horizontal, 20)

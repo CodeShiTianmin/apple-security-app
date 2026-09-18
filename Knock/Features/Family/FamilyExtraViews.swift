@@ -57,7 +57,7 @@ struct InviteFamilyView: View {
 
                         VStack(alignment: .leading, spacing: 12) {
                             FieldLabel(text: "초대 코드로 참여")
-                            KnockTextField(placeholder: "코드 입력 (예: 1234-5678)", text: $code, keyboard: .numberPad)
+                            InviteCodeDisplay(code: code)
                                 .accessibilityIdentifier("invite.codeField")
                                 .offset(x: shakeOffset)
                                 .onChange(of: code) { _, _ in withAnimation { errorText = nil } }
@@ -67,14 +67,39 @@ struct InviteFamilyView: View {
                                     .foregroundStyle(KnockColor.dangerText)
                                     .transition(.opacity.combined(with: .move(edge: .top)))
                             }
-                            Text("데모 코드: " + MockData.inviteCandidates.map(\.code).joined(separator: " · "))
-                                .font(KnockFont.regular(12))
-                                .foregroundStyle(KnockColor.textMuted)
+                            HStack(spacing: 8) {
+                                Text("데모 코드").font(KnockFont.regular(12)).foregroundStyle(KnockColor.textMuted)
+                                ForEach(MockData.inviteCandidates) { candidate in
+                                    Button {
+                                        withAnimation { code = candidate.code.filter(\.isNumber) }
+                                    } label: {
+                                        Text(candidate.code)
+                                            .font(KnockFont.medium(12))
+                                            .foregroundStyle(KnockColor.primaryDark)
+                                            .padding(.horizontal, 10).padding(.vertical, 5)
+                                            .background(KnockColor.cardTint, in: Capsule())
+                                    }
+                                    .buttonStyle(.pressable)
+                                    .accessibilityIdentifier("invite.demo.\(candidate.code)")
+                                }
+                            }
                             PrimaryButton(title: joinedMember == nil ? "참여하기" : "참여 완료",
-                                          isEnabled: code.filter(\.isNumber).count >= 4 && joinedMember == nil, style: .filled) {
+                                          isEnabled: code.count >= 4 && joinedMember == nil, style: .filled) {
                                 join()
                             }
                             .accessibilityIdentifier("invite.join")
+
+                            NumberPad(
+                                onDigit: { digit in
+                                    guard code.count < 8 else { return }
+                                    withAnimation(.spring(duration: 0.25)) { code.append(digit) }
+                                },
+                                onDelete: {
+                                    guard !code.isEmpty else { return }
+                                    withAnimation(.spring(duration: 0.25)) { code.removeLast() }
+                                }
+                            )
+                            .disabled(joinedMember != nil)
                         }
 
                         if let joinedMember {
@@ -300,5 +325,79 @@ struct FamilyActivityLogView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } } }
         }
+    }
+}
+
+/// 초대 코드 8자리를 `0000-0000` 슬롯으로 보여주는 표시부
+struct InviteCodeDisplay: View {
+    var code: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<8, id: \.self) { index in
+                if index == 4 {
+                    Text("-").font(KnockFont.bold(22)).foregroundStyle(KnockColor.textMuted)
+                }
+                let digit = index < code.count ? String(code[code.index(code.startIndex, offsetBy: index)]) : ""
+                Text(digit.isEmpty ? " " : digit)
+                    .font(KnockFont.bold(22))
+                    .foregroundStyle(KnockColor.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(index == code.count ? KnockColor.primary : KnockColor.stroke,
+                                    lineWidth: index == code.count ? 2 : 1)
+                    }
+                    .contentTransition(.numericText())
+                    .scaleEffect(index == code.count - 1 ? 1.05 : 1)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityValue(code)
+    }
+}
+
+/// 시스템 키보드 대신 쓰는 숫자 전용 키패드
+struct NumberPad: View {
+    var onDigit: (String) -> Void
+    var onDelete: () -> Void
+
+    private let rows: [[String]] = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["", "0", "⌫"]]
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach(rows, id: \.self) { row in
+                HStack(spacing: 10) {
+                    ForEach(row, id: \.self) { key in
+                        if key.isEmpty {
+                            Color.clear.frame(height: 50)
+                        } else {
+                            Button {
+                                if key == "⌫" { onDelete() } else { onDigit(key) }
+                            } label: {
+                                Group {
+                                    if key == "⌫" {
+                                        Image(systemName: "delete.left").font(.system(size: 20, weight: .medium))
+                                    } else {
+                                        Text(key).font(KnockFont.medium(22))
+                                    }
+                                }
+                                .foregroundStyle(KnockColor.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(key == "⌫" ? KnockColor.cardTint3 : .white,
+                                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .knockShadow(radius: 6, y: 2)
+                            }
+                            .buttonStyle(.pressable)
+                            .accessibilityIdentifier(key == "⌫" ? "pad.delete" : "pad.\(key)")
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
     }
 }
