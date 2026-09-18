@@ -33,6 +33,25 @@ struct CheckInRecord: Identifiable, Codable, Equatable {
     var date: Date
     var completed: Bool
     var status: SafetyStatus
+    var mood: Mood? = nil
+}
+
+/// 체크인 시 남기는 오늘의 기분
+enum Mood: String, Codable, CaseIterable, Identifiable {
+    case great = "아주 좋아요"
+    case good = "좋아요"
+    case soso = "그냥 그래요"
+    case tired = "피곤해요"
+    var id: String { rawValue }
+
+    var emoji: String {
+        switch self {
+        case .great: return "😆"
+        case .good: return "🙂"
+        case .soso: return "😐"
+        case .tired: return "😴"
+        }
+    }
 }
 
 struct CheckInSettings: Codable, Equatable {
@@ -74,6 +93,7 @@ struct FamilyMember: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var name: String
     var relation: String
+    var phone: String = "010-0000-0000"
     var avatarAsset: String
     var isOnline: Bool
     var lastCheckInMinutesAgo: Int
@@ -97,12 +117,18 @@ struct FamilyActivity: Identifiable, Equatable {
     var date: Date
 }
 
-struct ChatMessage: Identifiable, Equatable {
+struct ChatMessage: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var senderName: String
     var isMine: Bool
     var text: String
     var date: Date
+}
+
+/// 초대 코드로 참여할 수 있는 지인 (백엔드 연동 전 목업)
+struct InviteCandidate: Equatable {
+    var code: String
+    var member: FamilyMember
 }
 
 // MARK: - Health
@@ -138,6 +164,15 @@ struct HeartRateSummary: Equatable {
     var maxRange: String
     var min: Int
     var minRange: String
+    /// 24시간 시간대별 심박수 샘플
+    var samples: [Double] = []
+}
+
+/// 건강 앱(HealthKit) 연동 상태
+enum HealthConnection: String, Codable, Equatable {
+    case disconnected
+    case connecting
+    case connected
 }
 
 struct HealthOverview: Equatable {
@@ -181,7 +216,7 @@ struct StressPeriodSummary: Equatable {
 
 // MARK: - Notifications
 
-struct AppNotification: Identifiable, Equatable {
+struct AppNotification: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var title: String
     var body: String
@@ -189,7 +224,7 @@ struct AppNotification: Identifiable, Equatable {
     var kind: Kind
     var isRead: Bool
 
-    enum Kind { case checkIn, danger, family, system }
+    enum Kind: String, Codable { case checkIn, danger, family, system }
 }
 
 // MARK: - Withdrawal

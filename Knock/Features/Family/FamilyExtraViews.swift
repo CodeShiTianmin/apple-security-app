@@ -5,8 +5,11 @@ struct InviteFamilyView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var code = ""
-    @State private var joined = false
-    private let myCode = "KNOCK-7F2A"
+    @State private var joinedMember: FamilyMember?
+    @State private var errorText: String?
+    @State private var shakeOffset: CGFloat = 0
+    @State private var copied = false
+    private let myCode = "7392-1048"
 
     var body: some View {
         NavigationStack {
@@ -18,7 +21,27 @@ struct InviteFamilyView: View {
 
                         VStack(spacing: 10) {
                             Text("내 초대 코드").font(KnockFont.medium(14)).foregroundStyle(KnockColor.textSecondary)
-                            Text(myCode).font(KnockFont.bold(30)).foregroundStyle(KnockColor.textPrimary).tracking(2)
+                            Button {
+                                UIPasteboard.general.string = myCode
+                                withAnimation(.spring(duration: 0.3)) { copied = true }
+                                Task {
+                                    try? await Task.sleep(for: .seconds(1.5))
+                                    withAnimation { copied = false }
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Text(myCode).font(KnockFont.bold(30)).foregroundStyle(KnockColor.textPrimary).tracking(2)
+                                    Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(copied ? KnockColor.primary : KnockColor.textMuted)
+                                        .contentTransition(.symbolEffect(.replace))
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            if copied {
+                                Text("복사되었어요").font(KnockFont.regular(12)).foregroundStyle(KnockColor.primary)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
                             ShareLink(item: "똑똑똑에서 함께 안전 체크인해요! 초대 코드: \(myCode)") {
                                 Label("초대 링크 공유", systemImage: "square.and.arrow.up")
                                     .font(KnockFont.medium(14))
@@ -34,26 +57,74 @@ struct InviteFamilyView: View {
 
                         VStack(alignment: .leading, spacing: 12) {
                             FieldLabel(text: "초대 코드로 참여")
-                            KnockTextField(placeholder: "코드 입력 (예: KNOCK-1234)", text: $code)
-                            PrimaryButton(title: joined ? "참여 완료" : "참여하기", isEnabled: code.count >= 6 && !joined, style: .filled) {
-                                withAnimation {
-                                    joined = true
-                                    appState.members.append(FamilyMember(
-                                        name: "새 가족", relation: "지인", avatarAsset: "avatar_mother", isOnline: true,
-                                        lastCheckInMinutesAgo: 5, unreadCount: 0, activityTitle: "현재 활동 중",
-                                        activityDetail: "방금 가족에 참여했어요", streakDays: 1, nightingaleScore: 85.0,
-                                        scoreNote: "오늘은 정상 범위", avgSleepHours: 7, sleepQuality: "수면 질량:중",
-                                        avgHeartRate: 72, latitude: 35.173, longitude: 126.915))
-                                }
+                            KnockTextField(placeholder: "코드 입력 (예: 1234-5678)", text: $code)
+                                .keyboardType(.numbersAndPunctuation)
+                                .autocorrectionDisabled()
+                                .offset(x: shakeOffset)
+                                .onChange(of: code) { _, _ in withAnimation { errorText = nil } }
+                            if let errorText {
+                                Label(errorText, systemImage: "exclamationmark.circle.fill")
+                                    .font(KnockFont.regular(13))
+                                    .foregroundStyle(KnockColor.dangerText)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
                             }
+                            Text("데모 코드: " + MockData.inviteCandidates.map(\.code).joined(separator: " · "))
+                                .font(KnockFont.regular(12))
+                                .foregroundStyle(KnockColor.textMuted)
+                            PrimaryButton(title: joinedMember == nil ? "참여하기" : "참여 완료",
+                                          isEnabled: code.count >= 6 && joinedMember == nil, style: .filled) {
+                                join()
+                            }
+                        }
+
+                        if let joinedMember {
+                            HStack(spacing: 14) {
+                                AvatarView(asset: joinedMember.avatarAsset, size: 52, isOnline: joinedMember.isOnline, ring: KnockColor.primary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(joinedMember.name)님이 가족에 참여했어요")
+                                        .font(KnockFont.medium(16)).foregroundStyle(KnockColor.textPrimary)
+                                    Text("이제 서로의 안전 체크인을 확인할 수 있어요")
+                                        .font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary)
+                                }
+                                Spacer()
+                                Image(systemName: "checkmark.seal.fill").font(.system(size: 26)).foregroundStyle(KnockColor.primary)
+                            }
+                            .padding(16)
+                            .background(KnockColor.cardTint2, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .knockShadow()
+                            .transition(.scale(scale: 0.85).combined(with: .opacity))
                         }
                     }
                     .padding(20)
+                    .animation(.spring(duration: 0.45, bounce: 0.25), value: joinedMember)
+                    .animation(.spring(duration: 0.3), value: errorText)
                 }
             }
             .navigationTitle("가족 초대")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } } }
+        }
+    }
+
+    private func join() {
+        if let member = appState.joinFamily(code: code) {
+            errorText = nil
+            joinedMember = member
+            appState.showToast("\(member.name)님이 가족에 참여했어요", icon: "person.badge.plus")
+            Task {
+                try? await Task.sleep(for: .seconds(1.6))
+                dismiss()
+            }
+        } else {
+            errorText = "유효하지 않은 초대 코드예요. 다시 확인해 주세요."
+            shake()
+        }
+    }
+
+    private func shake() {
+        let steps: [CGFloat] = [-12, 10, -8, 6, -3, 0]
+        for (i, x) in steps.enumerated() {
+            withAnimation(.easeInOut(duration: 0.06).delay(Double(i) * 0.06)) { shakeOffset = x }
         }
     }
 }
@@ -63,6 +134,8 @@ struct FamilyChatView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
+
+    private var canSend: Bool { !text.trimmingCharacters(in: .whitespaces).isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -88,13 +161,34 @@ struct FamilyChatView: View {
                                     if !msg.isMine { Spacer(minLength: 60) }
                                 }
                                 .id(msg.id)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: msg.isMine ? .trailing : .leading)
+                                        .combined(with: .opacity)
+                                        .combined(with: .scale(scale: 0.9, anchor: msg.isMine ? .bottomTrailing : .bottomLeading)),
+                                    removal: .opacity))
+                            }
+                            if appState.isFamilyTyping {
+                                HStack {
+                                    TypingBubble()
+                                    Spacer(minLength: 60)
+                                }
+                                .id("typing")
+                                .transition(.opacity.combined(with: .move(edge: .leading)))
                             }
                         }
                         .padding(16)
+                        .animation(.spring(duration: 0.4, bounce: 0.2), value: appState.chat.count)
+                        .animation(.easeInOut(duration: 0.25), value: appState.isFamilyTyping)
                     }
                     .background(KnockColor.background)
                     .onChange(of: appState.chat.count) { _, _ in
                         if let last = appState.chat.last { withAnimation { proxy.scrollTo(last.id) } }
+                    }
+                    .onChange(of: appState.isFamilyTyping) { _, typing in
+                        if typing { withAnimation { proxy.scrollTo("typing") } }
+                    }
+                    .onAppear {
+                        if let last = appState.chat.last { proxy.scrollTo(last.id) }
                     }
                 }
                 HStack(spacing: 10) {
@@ -102,17 +196,17 @@ struct FamilyChatView: View {
                         .font(KnockFont.regular(15))
                         .padding(.horizontal, 16).frame(height: 44)
                         .background(KnockColor.sheet, in: Capsule())
-                    Button {
-                        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-                        appState.chat.append(ChatMessage(senderName: "나", isMine: true, text: text, date: .now))
-                        text = ""
-                    } label: {
+                        .onSubmit { send() }
+                    Button(action: send) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
-                            .background(KnockColor.primary, in: Circle())
+                            .background(canSend ? KnockColor.primary : KnockColor.textMuted, in: Circle())
+                            .scaleEffect(canSend ? 1 : 0.9)
+                            .animation(.spring(duration: 0.3), value: canSend)
                     }
+                    .disabled(!canSend)
                 }
                 .padding(12)
                 .background(.white)
@@ -120,6 +214,37 @@ struct FamilyChatView: View {
             .navigationTitle("가족 채팅")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } } }
+        }
+    }
+
+    private func send() {
+        guard canSend else { return }
+        appState.sendChat(text)
+        text = ""
+    }
+}
+
+/// 상대가 입력 중임을 나타내는 말풍선
+struct TypingBubble: View {
+    @State private var phase = 0
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(KnockColor.textMuted)
+                    .frame(width: 7, height: 7)
+                    .offset(y: phase == i ? -4 : 0)
+                    .opacity(phase == i ? 1 : 0.5)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(260))
+                withAnimation(.easeInOut(duration: 0.25)) { phase = (phase + 1) % 3 }
+            }
         }
     }
 }
@@ -152,62 +277,6 @@ struct FamilyActivityLogView: View {
             .navigationTitle("가족 활동")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } } }
-        }
-    }
-}
-
-/// [보충 화면] 알림 센터
-struct NotificationsView: View {
-    @Environment(AppState.self) private var appState
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if appState.notifications.isEmpty {
-                    EmptyStateView(title: "알림이 없어요", message: "새로운 알림이 오면 여기에서 확인할 수 있어요.")
-                } else {
-                    List {
-                        ForEach(appState.notifications) { n in
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: icon(for: n.kind))
-                                    .font(.system(size: 18))
-                                    .foregroundStyle(n.kind == .danger ? KnockColor.danger : KnockColor.primary)
-                                    .frame(width: 36, height: 36)
-                                    .background(n.kind == .danger ? KnockColor.dangerSoft : KnockColor.cardTint, in: Circle())
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text(n.title).font(KnockFont.medium(15)).foregroundStyle(KnockColor.textPrimary)
-                                        if !n.isRead { Circle().fill(KnockColor.yellow).frame(width: 7, height: 7) }
-                                    }
-                                    Text(n.body).font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary).lineSpacing(2)
-                                    Text(n.date.relativeDescription).font(KnockFont.regular(11)).foregroundStyle(KnockColor.textMuted)
-                                }
-                            }
-                            .padding(.vertical, 6)
-                            .listRowBackground(KnockColor.background)
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                }
-            }
-            .background(KnockColor.background)
-            .navigationTitle("알림 센터")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("모두 읽음") { appState.markAllRead() }.font(KnockFont.regular(14)) }
-                ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } }
-            }
-        }
-    }
-
-    private func icon(for kind: AppNotification.Kind) -> String {
-        switch kind {
-        case .checkIn: return "checkmark.circle"
-        case .danger: return "exclamationmark.triangle.fill"
-        case .family: return "person.2"
-        case .system: return "sparkles"
         }
     }
 }

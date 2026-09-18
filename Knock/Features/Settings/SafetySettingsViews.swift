@@ -253,7 +253,7 @@ struct PermissionsView: View {
                     locationManager.requestWhenInUseAuthorization()
                 }
                 permission(icon: "heart.text.square.fill", color: KnockColor.danger, title: "건강 데이터",
-                           detail: "심박수·수면·스트레스를 읽어 건강 상태를 보여줘요. (Apple Watch 연동)",
+                           detail: "심박수·수면·스트레스를 읽어 건강 상태를 보여줘요. (애플워치 연동)",
                            status: "건강 탭에서 연결") {
                     appState.tab = .health
                 }

@@ -16,6 +16,8 @@ struct DetailDateBar: View {
                 Button(action: onPrevious) { Image(systemName: "chevron.left").font(.system(size: 12)) }
                 Text(date.slashFormatted)
                     .font(KnockFont.medium(20))
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.25), value: date)
                 Button(action: onNext) { Image(systemName: "chevron.right").font(.system(size: 12)) }
             }
             .foregroundStyle(KnockColor.textPrimary)
@@ -35,6 +37,10 @@ struct DetailDateBar: View {
     }
 }
 
+private func format(_ v: Double) -> String {
+    v == v.rounded() ? String(Int(v)) : String(format: "%.1f", v)
+}
+
 // MARK: - 04 수면 상세
 
 struct SleepDetailView: View {
@@ -42,7 +48,9 @@ struct SleepDetailView: View {
     @Binding var path: [HealthRoute]
     @Binding var showSettings: Bool
     @State private var date = MockData.sleep.date
-    private let sleep = MockData.sleep
+    @State private var ringProgress: CGFloat = 0
+
+    private var sleep: SleepSummary { MockData.sleep(for: date) }
 
     var body: some View {
         GreenScaffold {
@@ -51,17 +59,18 @@ struct SleepDetailView: View {
         } content: {
             VStack(spacing: 20) {
                 DetailDateBar(date: date, onBack: { path.removeLast() },
-                              onPrevious: { date = Calendar.current.date(byAdding: .day, value: -1, to: date)! },
-                              onNext: { date = Calendar.current.date(byAdding: .day, value: 1, to: date)! })
+                              onPrevious: { shift(-1) },
+                              onNext: { shift(1) })
                     .padding(.top, 16)
 
                 ZStack {
-                    SleepRingView(stages: sleep.stages)
+                    SleepRingView(stages: sleep.stages, progress: ringProgress)
                         .frame(width: 240, height: 240)
                     VStack(spacing: 2) {
-                        Text("오늘").font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
-                        Text("\(Int(sleep.totalHours))").font(KnockFont.bold(44)).foregroundStyle(KnockColor.textPrimary)
-                        Text("h").font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
+                        Text(Calendar.current.isDateInToday(date) ? "오늘" : "총 수면").font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
+                        Text(format(sleep.totalHours)).font(KnockFont.bold(44)).foregroundStyle(KnockColor.textPrimary)
+                            .contentTransition(.numericText())
+                        Text("시간").font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -89,11 +98,12 @@ struct SleepDetailView: View {
                             Image(systemName: "zzz").font(.system(size: 18)).foregroundStyle(KnockColor.textPrimary)
                             Text("수면시간").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
                             Spacer()
-                            Text("\(Int(sleep.totalHours))h").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                            Text("\(format(sleep.totalHours))시간").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                                .contentTransition(.numericText())
                         }
                         .padding(.bottom, 12)
                         Divider()
-                        ForEach(sleep.stages) { stage in
+                        ForEach(Array(sleep.stages.enumerated()), id: \.element.id) { i, stage in
                             HStack(spacing: 10) {
                                 Circle().fill(stage.kind.color).frame(width: 10, height: 10)
                                 VStack(alignment: .leading, spacing: 2) {
@@ -101,22 +111,39 @@ struct SleepDetailView: View {
                                     Text(stage.range).font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
                                 }
                                 Spacer()
-                                Text("\(Int(stage.hours))h").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                                Text("\(format(stage.hours))시간").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                                    .contentTransition(.numericText())
                             }
                             .padding(.vertical, 12)
-                            if stage.id != sleep.stages.last?.id { Divider() }
+                            .opacity(ringProgress > 0 ? 1 : 0)
+                            .offset(x: ringProgress > 0 ? 0 : 24)
+                            .animation(.spring(duration: 0.5).delay(0.1 + Double(i) * 0.08), value: ringProgress > 0)
+                            if i != sleep.stages.count - 1 { Divider() }
                         }
                     }
                 }
                 .padding(.horizontal, 16)
+                .animation(.easeInOut(duration: 0.3), value: date)
             }
         }
+        .onAppear { animateIn() }
+    }
+
+    private func shift(_ days: Int) {
+        date = Calendar.current.date(byAdding: .day, value: days, to: date)!
+        animateIn()
+    }
+
+    private func animateIn() {
+        ringProgress = 0
+        withAnimation(.easeOut(duration: 0.9)) { ringProgress = 1 }
     }
 }
 
-/// 수면 단계 3중 링
+/// 수면 단계 3중 링 (progress 0→1 로 그려지는 애니메이션)
 struct SleepRingView: View {
     var stages: [SleepStage]
+    var progress: CGFloat = 1
 
     var body: some View {
         ZStack {
@@ -126,7 +153,7 @@ struct SleepRingView: View {
                     .stroke(stage.kind.color.opacity(0.18), lineWidth: 18)
                     .padding(inset)
                 Circle()
-                    .trim(from: 0, to: min(1, stage.hours / 12))
+                    .trim(from: 0, to: min(1, stage.hours / 12) * progress)
                     .stroke(stage.kind.color, style: StrokeStyle(lineWidth: 18, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .padding(inset)
@@ -152,7 +179,10 @@ struct HeartRateDetailView: View {
     @Binding var path: [HealthRoute]
     @Binding var showSettings: Bool
     @State private var date = MockData.heartRate.date
-    private let hr = MockData.heartRate
+    @State private var lineProgress: CGFloat = 0
+
+    private var hr: HeartRateSummary { MockData.heartRate(for: date) }
+    private var isLive: Bool { appState.healthConnection == .connected && Calendar.current.isDateInToday(date) }
 
     var body: some View {
         GreenScaffold {
@@ -163,8 +193,8 @@ struct HeartRateDetailView: View {
                 SectionCard(padding: 16) {
                     VStack(spacing: 8) {
                         DetailDateBar(date: date, onBack: { path.removeLast() },
-                                      onPrevious: { date = Calendar.current.date(byAdding: .day, value: -1, to: date)! },
-                                      onNext: { date = Calendar.current.date(byAdding: .day, value: 1, to: date)! })
+                                      onPrevious: { shift(-1) },
+                                      onNext: { shift(1) })
                             .padding(.horizontal, -16)
                         Image("illustration_heart_ecg")
                             .resizable()
@@ -191,8 +221,14 @@ struct HeartRateDetailView: View {
                                 .frame(width: 40, height: 40)
                                 .background(KnockColor.cardTint, in: Circle())
                             Text("심박수").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                            if isLive {
+                                PillBadge(text: "실시간", foreground: .white, background: KnockColor.danger, font: KnockFont.medium(10))
+                            }
                             Spacer()
-                            Text("\(hr.current) bpm").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                            Text("\(isLive ? appState.liveHeartRate : hr.current)회/분")
+                                .font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                                .contentTransition(.numericText())
+                                .animation(.easeInOut(duration: 0.3), value: appState.liveHeartRate)
                         }
                         .padding(.bottom, 12)
                         Divider()
@@ -204,14 +240,26 @@ struct HeartRateDetailView: View {
                     }
                 }
                 .padding(.horizontal, 20)
+                .animation(.easeInOut(duration: 0.3), value: date)
 
                 HStack(alignment: .bottom, spacing: 12) {
-                    HeartRateSparkline()
-                        .frame(height: 120)
+                    HeartRateSparkline(samples: hr.samples, progress: lineProgress)
+                        .frame(height: 140)
                 }
                 .padding(.horizontal, 20)
             }
         }
+        .onAppear { animateIn() }
+    }
+
+    private func shift(_ days: Int) {
+        date = Calendar.current.date(byAdding: .day, value: days, to: date)!
+        animateIn()
+    }
+
+    private func animateIn() {
+        lineProgress = 0
+        withAnimation(.easeInOut(duration: 1.2)) { lineProgress = 1 }
     }
 
     private func row(color: Color, title: String, range: String, value: Int) -> some View {
@@ -220,17 +268,20 @@ struct HeartRateDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(KnockFont.medium(15)).foregroundStyle(KnockColor.textPrimary)
                 Text(range).font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
+                    .contentTransition(.numericText())
             }
             Spacer()
-            Text("\(value) bpm").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+            Text("\(value)회/분").font(KnockFont.medium(20)).foregroundStyle(KnockColor.textPrimary)
+                .contentTransition(.numericText())
         }
         .padding(.vertical, 12)
     }
 }
 
-/// [보충] 24시간 심박수 추이 라인
+/// [보충] 24시간 심박수 추이 라인 (그려지는 애니메이션 + 최고점 표시)
 struct HeartRateSparkline: View {
-    private let samples: [Double] = [68, 64, 63, 66, 72, 85, 96, 110, 118, 184, 120, 98, 92, 88, 95, 102, 90, 84, 80, 76, 74, 72, 70, 69]
+    var samples: [Double]
+    var progress: CGFloat = 1
 
     var body: some View {
         SectionCard(padding: 14) {
@@ -238,18 +289,44 @@ struct HeartRateSparkline: View {
                 Text("24시간 추이").font(KnockFont.medium(13)).foregroundStyle(KnockColor.textSecondary)
                 GeometryReader { geo in
                     let maxV = samples.max() ?? 1, minV = samples.min() ?? 0
-                    let stepX = geo.size.width / CGFloat(samples.count - 1)
-                    Path { p in
-                        for (i, v) in samples.enumerated() {
-                            let y = geo.size.height * (1 - CGFloat((v - minV) / (maxV - minV)))
-                            let pt = CGPoint(x: CGFloat(i) * stepX, y: y)
+                    let span = max(1, maxV - minV)
+                    let stepX = geo.size.width / CGFloat(max(1, samples.count - 1))
+                    let points = samples.enumerated().map { i, v in
+                        CGPoint(x: CGFloat(i) * stepX, y: geo.size.height * (1 - CGFloat((v - minV) / span)))
+                    }
+                    let line = Path { p in
+                        for (i, pt) in points.enumerated() {
                             if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
                         }
                     }
-                    .stroke(KnockColor.primary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    ZStack(alignment: .topLeading) {
+                        Path { p in
+                            p.addPath(line)
+                            if let last = points.last, let first = points.first {
+                                p.addLine(to: CGPoint(x: last.x, y: geo.size.height))
+                                p.addLine(to: CGPoint(x: first.x, y: geo.size.height))
+                                p.closeSubpath()
+                            }
+                        }
+                        .fill(LinearGradient(colors: [KnockColor.primary.opacity(0.25), .clear], startPoint: .top, endPoint: .bottom))
+                        .opacity(Double(progress))
+                        line
+                            .trim(from: 0, to: progress)
+                            .stroke(KnockColor.primary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                        if progress >= 1, let maxIdx = samples.indices.max(by: { samples[$0] < samples[$1] }) {
+                            let pt = points[maxIdx]
+                            Circle().fill(KnockColor.danger).frame(width: 8, height: 8)
+                                .position(pt)
+                                .transition(.scale)
+                            Text("\(Int(samples[maxIdx]))")
+                                .font(KnockFont.bold(11)).foregroundStyle(KnockColor.danger)
+                                .position(x: min(max(pt.x, 14), geo.size.width - 14), y: max(8, pt.y - 14))
+                                .transition(.opacity)
+                        }
+                    }
                 }
                 HStack {
-                    Text("00:00"); Spacer(); Text("12:00"); Spacer(); Text("24:00")
+                    Text("0시"); Spacer(); Text("12시"); Spacer(); Text("24시")
                 }
                 .font(KnockFont.regular(10)).foregroundStyle(KnockColor.textMuted)
             }
@@ -264,7 +341,12 @@ struct StressDetailView: View {
     @Binding var path: [HealthRoute]
     @Binding var showSettings: Bool
     @State private var date = Date.now
-    private let hours: [Double] = [0.2, 0.15, 0.1, 0.1, 0.15, 0.3, 0.45, 0.6, 0.7, 0.55, 0.5, 0.65, 0.8, 0.75, 0.6, 0.5, 0.4, 0.45, 0.35, 0.3, 0.25, 0.2, 0.2, 0.15]
+    @State private var barProgress: CGFloat = 0
+
+    private var hours: [Double] { MockData.stressHours(for: date) }
+    private var level: StressLevel { MockData.stressLevel(for: hours) }
+    private var peakHour: Int { hours.indices.max { hours[$0] < hours[$1] } ?? 12 }
+    private var hrv: Int { Int(70 - (hours.reduce(0, +) / Double(hours.count)) * 50) }
 
     var body: some View {
         GreenScaffold {
@@ -273,30 +355,35 @@ struct StressDetailView: View {
         } content: {
             VStack(spacing: 20) {
                 DetailDateBar(date: date, onBack: { path.removeLast() },
-                              onPrevious: { date = Calendar.current.date(byAdding: .day, value: -1, to: date)! },
-                              onNext: { date = Calendar.current.date(byAdding: .day, value: 1, to: date)! })
+                              onPrevious: { shift(-1) },
+                              onNext: { shift(1) })
                     .padding(.top, 16)
 
                 VStack(spacing: 6) {
-                    Text("오늘 스트레스").font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary)
-                    Text("정상 상태").font(KnockFont.bold(32)).foregroundStyle(KnockColor.textPrimary)
-                    PillBadge(text: "HRV 23 ms · 낮은 스트레스", background: .white, font: KnockFont.medium(11))
+                    Text(Calendar.current.isDateInToday(date) ? "오늘 스트레스" : "하루 스트레스")
+                        .font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary)
+                    Text(level.rawValue).font(KnockFont.bold(32)).foregroundStyle(KnockColor.textPrimary)
+                        .contentTransition(.opacity)
+                    PillBadge(text: "심박 변이 \(hrv) · \(level == .good || level == .normal ? "낮은" : "높은") 스트레스",
+                              background: .white, font: KnockFont.medium(11))
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity)
-                .background(KnockColor.cardTint, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(level.color.opacity(0.28), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .padding(.horizontal, 16)
+                .animation(.easeInOut(duration: 0.3), value: date)
 
                 SectionCard(padding: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("시간대별 스트레스").font(KnockFont.medium(16)).foregroundStyle(KnockColor.textPrimary)
                         GeometryReader { geo in
                             HStack(alignment: .bottom, spacing: 3) {
-                                ForEach(Array(hours.enumerated()), id: \.offset) { _, v in
+                                ForEach(Array(hours.enumerated()), id: \.offset) { i, v in
                                     Capsule()
                                         .fill(v > 0.7 ? KnockColor.stressHigh : v > 0.5 ? KnockColor.yellow : KnockColor.primary)
-                                        .frame(height: max(6, geo.size.height * v))
+                                        .frame(height: max(6, geo.size.height * v * barProgress))
                                         .frame(maxWidth: .infinity)
+                                        .animation(.spring(duration: 0.6, bounce: 0.2).delay(Double(i) * 0.02), value: barProgress)
                                 }
                             }
                             .frame(height: geo.size.height, alignment: .bottom)
@@ -315,14 +402,28 @@ struct StressDetailView: View {
                             Image(systemName: "wind").foregroundStyle(KnockColor.primary)
                             Text("추천 호흡 운동").font(KnockFont.medium(16)).foregroundStyle(KnockColor.textPrimary)
                         }
-                        Text("오후 12~14시에 스트레스가 높았어요. 1분 동안 4초 들이쉬고 6초 내쉬는 호흡을 해보세요.")
+                        Text("\(peakHour)시~\(peakHour + 2)시에 스트레스가 가장 높았어요. 1분 동안 4초 들이쉬고 6초 내쉬는 호흡을 해보세요.")
                             .font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary).lineSpacing(3)
-                        Button("주간 통계 보기") { appState.tab = .stats }
-                            .font(KnockFont.medium(14)).foregroundStyle(KnockColor.primary)
+                        HStack(spacing: 12) {
+                            PrimaryButton(title: "호흡 운동 시작", style: .green) { path.append(.breathing) }
+                            Button("주간 통계 보기") { appState.tab = .stats }
+                                .font(KnockFont.medium(14)).foregroundStyle(KnockColor.primary)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
             }
         }
+        .onAppear { animateIn() }
+    }
+
+    private func shift(_ days: Int) {
+        date = Calendar.current.date(byAdding: .day, value: days, to: date)!
+        animateIn()
+    }
+
+    private func animateIn() {
+        barProgress = 0
+        withAnimation { barProgress = 1 }
     }
 }

@@ -42,6 +42,7 @@ struct LeafDecoration: View {
 
 /// 메인 탭 상단의 초록색 사용자 헤더
 struct UserHeader: View {
+    @Environment(AppState.self) private var appState
     var user: UserProfile
     var isOnline: Bool
     var trailing: AnyView? = nil
@@ -61,7 +62,7 @@ struct UserHeader: View {
                             .font(KnockFont.medium(18))
                             .foregroundStyle(.white)
                         PillBadge(
-                            text: isOnline ? "ONLINE" : "OFFLINE",
+                            text: isOnline ? "온라인" : "오프라인",
                             foreground: isOnline ? KnockColor.textPrimary : KnockColor.dangerText,
                             background: isOnline ? KnockColor.cardTint : KnockColor.dangerSoft,
                             horizontalPadding: 10,
@@ -74,6 +75,7 @@ struct UserHeader: View {
                 }
                 Spacer()
                 if let trailing { trailing }
+                NotificationBell()
             }
             Text("오늘도 체크하고 화이팅 하자")
                 .font(KnockFont.medium(14))
@@ -82,6 +84,44 @@ struct UserHeader: View {
         .padding(.horizontal, 24)
         .padding(.top, 12)
         .padding(.bottom, 20)
+    }
+}
+
+/// 헤더 우측 알림 벨 (안 읽은 개수 배지, 새 알림 시 흔들림)
+struct NotificationBell: View {
+    @Environment(AppState.self) private var appState
+    @State private var ring = false
+
+    var body: some View {
+        Button { appState.showNotifications = true } label: {
+            Image(systemName: "bell.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .rotationEffect(.degrees(ring ? 14 : 0), anchor: .top)
+                .overlay(alignment: .topTrailing) {
+                    if appState.unreadNotifications > 0 {
+                        Text("\(min(appState.unreadNotifications, 9))")
+                            .font(KnockFont.bold(10))
+                            .foregroundStyle(KnockColor.textPrimary)
+                            .frame(minWidth: 16, minHeight: 16)
+                            .background(KnockColor.yellow, in: Circle())
+                            .overlay(Circle().stroke(KnockColor.primary, lineWidth: 1.5))
+                            .offset(x: 7, y: -6)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("알림 센터")
+        .onChange(of: appState.unreadNotifications) { old, new in
+            guard new > old else { return }
+            withAnimation(.interpolatingSpring(stiffness: 260, damping: 5)) { ring = true }
+            Task {
+                try? await Task.sleep(for: .milliseconds(120))
+                withAnimation(.interpolatingSpring(stiffness: 260, damping: 6)) { ring = false }
+            }
+        }
     }
 }
 

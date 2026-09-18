@@ -5,6 +5,7 @@ enum HealthRoute: Hashable {
     case sleep
     case heartRate
     case stress
+    case breathing
 }
 
 struct HealthView: View {
@@ -22,6 +23,7 @@ struct HealthView: View {
                         case .sleep: SleepDetailView(path: $path, showSettings: $showSettings)
                         case .heartRate: HeartRateDetailView(path: $path, showSettings: $showSettings)
                         case .stress: StressDetailView(path: $path, showSettings: $showSettings)
+                        case .breathing: BreathingExerciseView(path: $path)
                         }
                     }
                     .toolbar(.hidden, for: .navigationBar)
@@ -82,6 +84,28 @@ struct HealthStatusView: View {
                         .font(KnockFont.medium(20))
                         .foregroundStyle(KnockColor.textPrimary)
                 }
+
+                HStack(spacing: 12) {
+                    if appState.healthConnection == .connected {
+                        LiveHeartBadge()
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                    Button { path.append(.breathing) } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "wind")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("호흡 운동 1분")
+                                .font(KnockFont.medium(14))
+                        }
+                        .foregroundStyle(KnockColor.textPrimary)
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(KnockColor.cardTint, in: Capsule())
+                        .knockShadow(radius: 8, y: 3)
+                    }
+                    .buttonStyle(.pressable)
+                }
+                .animation(.spring(duration: 0.4), value: appState.healthConnection)
+                .padding(.top, isGood ? 4 : 0)
             }
             .padding(.bottom, 16)
         }
@@ -126,11 +150,25 @@ struct HealthOverviewView: View {
                         Spacer()
                         CircleIconButton(systemImage: "ellipsis", size: 36) {}
                     }
-                    Text(String(format: "%.1f", overview.nightingaleScore))
-                        .font(KnockFont.bold(44))
-                        .foregroundStyle(KnockColor.textPrimary)
+                    ZStack {
+                        Circle().stroke(Color.white.opacity(0.6), lineWidth: 8)
+                        Circle()
+                            .trim(from: 0, to: scoreProgress)
+                            .stroke(overview.condition == .good ? KnockColor.primary : KnockColor.danger,
+                                    style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                        Text(String(format: "%.1f", displayedScore))
+                            .font(KnockFont.bold(40))
+                            .foregroundStyle(KnockColor.textPrimary)
+                            .contentTransition(.numericText())
+                            .monospacedDigit()
+                    }
+                    .frame(width: 150, height: 150)
+                    .padding(.vertical, 4)
                     PillBadge(text: overview.scoreNote, background: .white, font: KnockFont.medium(11))
                 }
+                .onAppear { animateScore() }
+                .onChange(of: overview.nightingaleScore) { _, _ in animateScore() }
                 .padding(16)
                 .frame(maxWidth: .infinity)
                 .background(
@@ -148,7 +186,9 @@ struct HealthOverviewView: View {
                     .padding(.horizontal, 20)
 
                 HStack(spacing: 12) {
-                    HealthMetricCard(icon: "heart", title: "심박수", value: "\(overview.heartRate) bpm") { path.append(.heartRate) }
+                    HealthMetricCard(icon: "heart", title: appState.healthConnection == .connected ? "심박수 · 실시간" : "심박수",
+                                     value: "\(appState.healthConnection == .connected ? appState.liveHeartRate : overview.heartRate)회/분",
+                                     live: appState.healthConnection == .connected) { path.append(.heartRate) }
                     HealthMetricCard(icon: "moon", title: "수면", value: "\(format(overview.sleepHoursPerDay)) 시간/하루") { path.append(.sleep) }
                 }
                 .padding(.horizontal, 16)
@@ -190,10 +230,22 @@ struct HealthOverviewView: View {
         }
     }
 
+    @State private var scoreProgress: CGFloat = 0
+    @State private var displayedScore: Double = 0
+
+    private func animateScore() {
+        scoreProgress = 0
+        displayedScore = 0
+        withAnimation(.easeOut(duration: 1.1)) {
+            scoreProgress = CGFloat(overview.nightingaleScore / 100)
+            displayedScore = overview.nightingaleScore
+        }
+    }
+
     private func watchLink(action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Text("AppleWatch").font(KnockFont.regular(12))
+                Text("에플워치").font(KnockFont.regular(12))
                 Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
             }
             .foregroundStyle(KnockColor.textSecondary)
@@ -209,17 +261,27 @@ struct HealthMetricCard: View {
     var icon: String
     var title: String
     var value: String
+    var live: Bool = false
     var action: () -> Void
+    @State private var beat = false
 
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
-                    Image(systemName: icon).font(.system(size: 14)).foregroundStyle(KnockColor.primary)
+                    Image(systemName: live ? "heart.fill" : icon)
+                        .font(.system(size: 14))
+                        .foregroundStyle(live ? KnockColor.danger : KnockColor.primary)
+                        .scaleEffect(live && beat ? 1.25 : 1)
+                        .animation(live ? .easeInOut(duration: 0.45).repeatForever(autoreverses: true) : .default, value: beat)
                     Text(title).font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
                 }
                 Text(value).font(KnockFont.medium(18)).foregroundStyle(KnockColor.textPrimary)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.3), value: value)
             }
+            .onAppear { beat = live }
+            .onChange(of: live) { _, v in beat = v }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -247,29 +309,109 @@ struct WatchTile: View {
     }
 }
 
-/// [보충 화면] 건강 앱 연동 안내 카드
+/// [보충 화면] 건강 앱 연동 안내 카드 (연결 중 스피너 → 연결됨)
 struct HealthKitConnectCard: View {
-    @State private var connected = false
+    @Environment(AppState.self) private var appState
+    @State private var spin = false
+
+    private var state: HealthConnection { appState.healthConnection }
+
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "heart.text.square.fill")
-                .font(.system(size: 28))
-                .foregroundStyle(KnockColor.danger)
+            ZStack {
+                if state == .connecting {
+                    Circle()
+                        .trim(from: 0.15, to: 0.85)
+                        .stroke(KnockColor.primary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        .frame(width: 40, height: 40)
+                        .rotationEffect(.degrees(spin ? 360 : 0))
+                        .animation(.linear(duration: 0.9).repeatForever(autoreverses: false), value: spin)
+                        .onAppear { spin = true }
+                        .onDisappear { spin = false }
+                }
+                Image(systemName: state == .connected ? "checkmark.circle.fill" : "heart.text.square.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(state == .connected ? KnockColor.primary : KnockColor.danger)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 4) {
-                Text(connected ? "건강 앱과 연결됨" : "건강 앱 연결하기")
+                Text(title)
                     .font(KnockFont.medium(15)).foregroundStyle(KnockColor.textPrimary)
-                Text(connected ? "Apple Watch 데이터를 자동으로 가져와요." : "심박수·수면·스트레스 데이터를 자동으로 가져와요.")
+                    .contentTransition(.opacity)
+                Text(subtitle)
                     .font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
+                    .contentTransition(.opacity)
             }
             Spacer()
-            Button(connected ? "해제" : "연결") { withAnimation { connected.toggle() } }
-                .font(KnockFont.medium(13))
-                .foregroundStyle(connected ? KnockColor.textSecondary : .white)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(connected ? KnockColor.sheet : KnockColor.primary, in: Capsule())
+            Button {
+                if state == .connected { appState.disconnectHealth() } else { appState.connectHealth() }
+            } label: {
+                Text(buttonTitle)
+                    .font(KnockFont.medium(13))
+                    .foregroundStyle(state == .connected ? KnockColor.textSecondary : .white)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(state == .connected ? KnockColor.sheet : KnockColor.primary, in: Capsule())
+            }
+            .disabled(state == .connecting)
         }
         .padding(16)
         .background(.white, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(state == .connected ? KnockColor.primary.opacity(0.5) : .clear, lineWidth: 1.5)
+        }
         .knockShadow(radius: 12, y: 4)
+        .animation(.spring(duration: 0.4), value: state)
+    }
+
+    private var title: String {
+        switch state {
+        case .disconnected: return "건강 앱 연결하기"
+        case .connecting: return "건강 앱에 연결하는 중..."
+        case .connected: return "건강 앱과 연결됨"
+        }
+    }
+
+    private var subtitle: String {
+        switch state {
+        case .disconnected: return "심박수·수면·스트레스 데이터를 자동으로 가져와요."
+        case .connecting: return "에플워치 데이터 권한을 확인하고 있어요."
+        case .connected: return "에플워치 데이터를 실시간으로 가져와요."
+        }
+    }
+
+    private var buttonTitle: String {
+        switch state {
+        case .disconnected: return "연결"
+        case .connecting: return "연결 중"
+        case .connected: return "해제"
+        }
+    }
+}
+
+/// 실시간 심박수 배지 (건강 앱 연결 시)
+struct LiveHeartBadge: View {
+    @Environment(AppState.self) private var appState
+    @State private var beat = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "heart.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(KnockColor.danger)
+                .scaleEffect(beat ? 1.3 : 1)
+                .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true), value: beat)
+            Text("\(appState.liveHeartRate)")
+                .font(KnockFont.bold(16))
+                .foregroundStyle(KnockColor.textPrimary)
+                .contentTransition(.numericText())
+                .monospacedDigit()
+            Text("회/분").font(KnockFont.regular(12)).foregroundStyle(KnockColor.textSecondary)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(.white, in: Capsule())
+        .knockShadow(radius: 8, y: 3)
+        .onAppear { beat = true }
     }
 }
