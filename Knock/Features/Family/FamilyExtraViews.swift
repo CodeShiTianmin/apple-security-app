@@ -57,9 +57,8 @@ struct InviteFamilyView: View {
 
                         VStack(alignment: .leading, spacing: 12) {
                             FieldLabel(text: "초대 코드로 참여")
-                            KnockTextField(placeholder: "코드 입력 (예: 1234-5678)", text: $code)
-                                .keyboardType(.numbersAndPunctuation)
-                                .autocorrectionDisabled()
+                            KnockTextField(placeholder: "코드 입력 (예: 1234-5678)", text: $code, keyboard: .numberPad)
+                                .accessibilityIdentifier("invite.codeField")
                                 .offset(x: shakeOffset)
                                 .onChange(of: code) { _, _ in withAnimation { errorText = nil } }
                             if let errorText {
@@ -75,6 +74,7 @@ struct InviteFamilyView: View {
                                           isEnabled: code.filter(\.isNumber).count >= 4 && joinedMember == nil, style: .filled) {
                                 join()
                             }
+                            .accessibilityIdentifier("invite.join")
                         }
 
                         if let joinedMember {
@@ -191,6 +191,26 @@ struct FamilyChatView: View {
                         if let last = appState.chat.last { proxy.scrollTo(last.id) }
                     }
                 }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(quickReplies, id: \.self) { reply in
+                            Button {
+                                appState.sendChat(reply)
+                            } label: {
+                                Text(reply)
+                                    .font(KnockFont.medium(13))
+                                    .foregroundStyle(KnockColor.primaryDark)
+                                    .padding(.horizontal, 12).padding(.vertical, 7)
+                                    .background(KnockColor.cardTint, in: Capsule())
+                            }
+                            .buttonStyle(.pressable)
+                            .accessibilityIdentifier("chat.quick.\(reply)")
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .padding(.top, 10)
+                .background(.white)
                 HStack(spacing: 10) {
                     TextField("메시지 입력", text: $text)
                         .font(KnockFont.regular(15))
@@ -216,6 +236,8 @@ struct FamilyChatView: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } } }
         }
     }
+
+    private let quickReplies = ["잘 지내고 있어요 😊", "오늘 체크했어요!", "저녁에 전화할게요", "사랑해요 ❤️"]
 
     private func send() {
         guard canSend else { return }

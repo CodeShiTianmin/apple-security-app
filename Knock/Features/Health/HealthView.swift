@@ -201,8 +201,8 @@ struct HealthOverviewView: View {
                 .padding(.horizontal, 20)
 
                 HStack(spacing: 12) {
-                    WatchTile(asset: "watch_heart") { path.append(.heartRate) }
-                    WatchTile(asset: "watch_sleep") { path.append(.sleep) }
+                    WatchTile(face: .heart) { path.append(.heartRate) }
+                    WatchTile(face: .sleep) { path.append(.sleep) }
                 }
                 .padding(.horizontal, 16)
 
@@ -218,8 +218,8 @@ struct HealthOverviewView: View {
                 watchLink { path.append(.stress) }.padding(.horizontal, 20)
 
                 HStack(spacing: 12) {
-                    WatchTile(asset: "watch_relax") { path.append(.stress) }
-                    WatchTile(asset: "watch_stress") { path.append(.stress) }
+                    WatchTile(face: .relax) { path.append(.stress) }
+                    WatchTile(face: .stress) { path.append(.stress) }
                 }
                 .padding(.horizontal, 16)
 
@@ -291,21 +291,102 @@ struct HealthMetricCard: View {
     }
 }
 
+enum WatchFace { case heart, sleep, relax, stress }
+
+/// 워치 화면 느낌의 타일 (SwiftUI 로 그려서 실시간 데이터와 애니메이션 반영)
 struct WatchTile: View {
-    var asset: String
+    @Environment(AppState.self) private var appState
+    var face: WatchFace
     var action: () -> Void
+    @State private var animate = false
+
+    private var heartRate: Int {
+        appState.healthConnection == .connected ? appState.liveHeartRate : appState.healthOverview.heartRate
+    }
+
     var body: some View {
         Button(action: action) {
-            Image(asset)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .padding(8)
-                .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .knockShadow(radius: 18, y: 6)
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.black)
+                Text(Date.now.shortTime)
+                    .font(KnockFont.medium(11)).foregroundStyle(.white).padding(10)
+                content.padding(12)
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .padding(8)
+            .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .knockShadow(radius: 18, y: 6)
         }
         .buttonStyle(.pressable)
+        .onAppear { animate = true }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch face {
+        case .heart:
+            VStack(spacing: 6) {
+                Spacer(minLength: 0)
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(Color(red: 1, green: 0.23, blue: 0.19))
+                    .shadow(color: .red.opacity(0.7), radius: animate ? 14 : 4)
+                    .scaleEffect(animate ? 1.08 : 0.92)
+                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: animate)
+                Text("현재").font(KnockFont.regular(11)).foregroundStyle(.white.opacity(0.8))
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text("\(heartRate)").font(KnockFont.bold(26)).foregroundStyle(.white)
+                        .contentTransition(.numericText()).monospacedDigit()
+                    Text("회/분").font(KnockFont.medium(12)).foregroundStyle(Color(red: 1, green: 0.23, blue: 0.19))
+                }
+            }
+            .frame(maxWidth: .infinity)
+        case .sleep:
+            VStack(spacing: 6) {
+                Spacer(minLength: 0)
+                ZStack {
+                    Circle().stroke(Color(red: 0.55, green: 0.36, blue: 1).opacity(0.25), lineWidth: 9)
+                    Circle().trim(from: 0, to: animate ? 0.9 : 0)
+                        .stroke(Color(red: 0.62, green: 0.42, blue: 1), style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeOut(duration: 1.2), value: animate)
+                    Image(systemName: "moon.zzz.fill").font(.system(size: 20)).foregroundStyle(.white)
+                }
+                .frame(width: 64, height: 64)
+                Text("수면 90%").font(KnockFont.bold(18)).foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity)
+        case .relax:
+            VStack(alignment: .leading, spacing: 4) {
+                ZStack {
+                    Circle().stroke(Color(red: 0.2, green: 0.75, blue: 1), lineWidth: 5)
+                        .frame(width: 44, height: 44)
+                        .scaleEffect(animate ? 1.15 : 0.9)
+                        .animation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true), value: animate)
+                }
+                .frame(height: 54)
+                Spacer(minLength: 0)
+                Text("호흡 운동").font(KnockFont.bold(17)).foregroundStyle(.white)
+                Text("4초 들이쉬고 · 6초 내쉬기").font(KnockFont.regular(10)).foregroundStyle(Color(red: 0.6, green: 0.8, blue: 1))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        case .stress:
+            VStack(alignment: .leading, spacing: 6) {
+                Spacer(minLength: 0)
+                HStack(alignment: .bottom, spacing: 4) {
+                    ForEach(Array([0.5, 0.8, 0.35, 0.6, 0.95, 0.45, 0.7].enumerated()), id: \.offset) { i, h in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(h > 0.75 ? Color(red: 1, green: 0.4, blue: 0.3) : Color(red: 0.36, green: 0.85, blue: 0.5))
+                            .frame(height: animate ? 46 * h : 4)
+                            .animation(.spring(duration: 0.7).delay(Double(i) * 0.06), value: animate)
+                    }
+                }
+                .frame(height: 46)
+                Text("스트레스").font(KnockFont.bold(17)).foregroundStyle(.white)
+                Text("오늘 대부분 좋은 상태").font(KnockFont.regular(10)).foregroundStyle(.white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
