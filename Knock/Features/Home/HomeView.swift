@@ -5,29 +5,51 @@ struct HomeView: View {
     @Environment(AppState.self) private var appState
     @Binding var showSettings: Bool
     @State private var showMap = false
-    @State private var showDemoMenu = false
+    @State private var showMoodPicker = false
+    @State private var showCalendar = false
 
     var body: some View {
         GreenScaffold {
             UserHeader(user: appState.user, isOnline: !appState.isDangerMode,
                        onAvatarTap: { showSettings = true })
         } content: {
-            switch appState.safety {
-            case .checkedIn, .resolved:
-                CheckedInContent(showMap: $showMap)
-            case .idle, .dangerPending:
-                CheckPendingContent()
-            case .emergencyContacting:
-                EmergencyContactingContent()
+            Group {
+                switch appState.safety {
+                case .checkedIn:
+                    CheckedInContent(showMap: $showMap, showCalendar: $showCalendar)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                case .resolved(let name):
+                    EmergencyResolvedContent(responder: name, showMap: $showMap)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                case .idle, .dangerPending:
+                    CheckPendingContent(showMoodPicker: $showMoodPicker)
+                        .transition(.opacity)
+                case .emergencyContacting:
+                    EmergencyContactingContent()
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
+                }
             }
+            .animation(.spring(duration: 0.45), value: appState.safety)
         }
         .sheet(isPresented: $showMap) { FamilyMapView() }
+        .sheet(isPresented: $showCalendar) { MyCheckInCalendarView() }
+        .sheet(isPresented: $showMoodPicker) {
+            MoodPickerSheet { mood in
+                showMoodPicker = false
+                appState.checkIn(mood: mood)
+            }
+            .presentationDetents([.height(380)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(KnockColor.background)
+        }
         .overlay(alignment: .bottomTrailing) {
             // 데모용 시나리오 전환 버튼
             Menu {
                 Button("체크 완료 상태 (01)") { appState.checkIn() }
                 Button("위험 감지 시나리오 (02·12)") { appState.simulateDangerDetected() }
                 Button("비상 연락 진행중 (03)") { appState.startEmergencyContact() }
+                Button("가족 응답 완료 (종료)") { appState.resolveEmergency(by: appState.emergencyContacts.first?.name ?? "엄마") }
+                Button("가족 실시간 이벤트 발생") { appState.applyLiveEvent() }
                 Button("초기화 (체크 전)") { appState.resetSafetyDemo() }
             } label: {
                 Image(systemName: "wand.and.stars")
@@ -48,24 +70,40 @@ struct HomeView: View {
 private struct CheckedInContent: View {
     @Environment(AppState.self) private var appState
     @Binding var showMap: Bool
+    @Binding var showCalendar: Bool
+    @State private var bounce = false
 
     var body: some View {
         VStack(spacing: 12) {
-            WeeklyCalendarCard()
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
+            Button { showCalendar = true } label: {
+                WeeklyCalendarCard()
+            }
+            .buttonStyle(.pressable)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
 
             Image("mascot_happy")
                 .resizable()
                 .scaledToFit()
                 .frame(height: 200)
+                .scaleEffect(bounce ? 1.0 : 0.94)
+                .offset(y: bounce ? 0 : 6)
+                .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bounce)
+                .onAppear { bounce = true }
 
             VStack(spacing: 4) {
                 Text("체크 완료")
                     .font(KnockFont.bold(38))
                     .foregroundStyle(KnockColor.textPrimary)
-                PillBadge(text: "오늘 상태 : 안전", icon: "checkmark.shield",
-                          font: KnockFont.medium(14), radius: 16, iconSize: 15)
+                HStack(spacing: 8) {
+                    PillBadge(text: "오늘 상태 : 안전", icon: "checkmark.shield",
+                              font: KnockFont.medium(14), radius: 16, iconSize: 15)
+                    if let mood = appState.todayMood {
+                        PillBadge(text: "\(mood.emoji) \(mood.rawValue)", foreground: KnockColor.textPrimary,
+                                  background: KnockColor.yellow, font: KnockFont.medium(14), radius: 16)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
             }
             .padding(.vertical, 4)
 
@@ -86,7 +124,7 @@ private struct CheckedInContent: View {
 /// 나의 주간 캘린더
 struct WeeklyCalendarCard: View {
     @Environment(AppState.self) private var appState
-    private let symbols = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    private let symbols = ["월", "화", "수", "목", "금", "토", "일"]
 
     var body: some View {
         VStack(spacing: 12) {
@@ -96,10 +134,13 @@ struct WeeklyCalendarCard: View {
                     .foregroundStyle(KnockColor.textPrimary)
                 Spacer()
                 PillBadge(text: "\(appState.streakDays)일 연속 출석 중")
+                    .contentTransition(.numericText())
+                    .animation(.spring(duration: 0.5), value: appState.streakDays)
             }
             .padding(.vertical, 2)
             HStack(spacing: 0) {
                 ForEach(Array(appState.weekRecords.enumerated()), id: \.element.id) { i, record in
+                    let isToday = Calendar.current.isDateInToday(record.date)
                     VStack(spacing: 4) {
                         Text(symbols[i % symbols.count])
                             .font(KnockFont.medium(12))
@@ -108,12 +149,23 @@ struct WeeklyCalendarCard: View {
                             Circle()
                                 .fill(record.completed ? KnockColor.primary : KnockColor.pendingDay)
                                 .frame(width: 28, height: 28)
+                                .overlay {
+                                    if isToday {
+                                        Circle().stroke(KnockColor.yellow, lineWidth: 2).padding(-2)
+                                    }
+                                }
                             if record.completed {
-                                Image(systemName: record.status == .danger ? "exclamationmark" : "checkmark")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(.white)
+                                if let mood = record.mood {
+                                    Text(mood.emoji).font(.system(size: 15))
+                                        .transition(.scale)
+                                } else {
+                                    Image(systemName: record.status == .danger ? "exclamationmark" : "checkmark")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
                             }
                         }
+                        .animation(.spring(duration: 0.45), value: record.completed)
                         Text("\(Calendar.current.component(.day, from: record.date))")
                             .font(KnockFont.medium(12))
                             .foregroundStyle(record.completed ? KnockColor.textPrimary : KnockColor.textMuted)
@@ -214,6 +266,8 @@ struct FamilyMapCard: View {
 
 private struct CheckPendingContent: View {
     @Environment(AppState.self) private var appState
+    @Binding var showMoodPicker: Bool
+    @State private var glow = false
 
     private var deadline: Date? {
         if case .dangerPending(let d) = appState.safety { return d }
@@ -235,7 +289,7 @@ private struct CheckPendingContent: View {
                 .frame(height: 40)
 
             Button {
-                appState.checkIn()
+                if appState.isDangerMode { appState.confirmSafe() } else { showMoodPicker = true }
             } label: {
                 Text("오늘 체크")
                     .font(KnockFont.medium(20))
@@ -243,9 +297,16 @@ private struct CheckPendingContent: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .background(KnockColor.yellow, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .stroke(KnockColor.yellow.opacity(glow ? 0 : 0.7), lineWidth: 3)
+                            .scaleEffect(glow ? 1.12 : 1.0)
+                            .animation(.easeOut(duration: 1.4).repeatForever(autoreverses: false), value: glow)
+                    }
             }
             .buttonStyle(.pressable)
             .padding(.horizontal, 20)
+            .onAppear { glow = true }
 
             PillBadge(
                 text: appState.isDangerMode ? "오늘 상태 : 위험" : "오늘 상태 : 확인 전",
@@ -290,7 +351,7 @@ private struct EmergencyContactingContent: View {
             }
 
             CountdownCard(title: "다음 연락 시도 까지",
-                          target: Date.now.addingTimeInterval(59), verticalPadding: 12)
+                          target: appState.nextAttemptDate, verticalPadding: 12)
                 .padding(.horizontal, 20)
 
             PrimaryButton(title: "저는 안전해요 · 연락 중단", style: .green) { showCancelConfirm = true }
@@ -338,7 +399,10 @@ struct EmergencyContactRow: View {
     @ViewBuilder private var stateBadge: some View {
         switch contact.state {
         case .contacting:
-            PillBadge(text: "연락중...", foreground: KnockColor.textPrimary, background: KnockColor.yellow)
+            HStack(spacing: 6) {
+                CallingDots()
+                PillBadge(text: "연락중...", foreground: KnockColor.textPrimary, background: KnockColor.yellow)
+            }
         case .waiting:
             PillBadge(text: "대기중...", foreground: KnockColor.textMuted, background: KnockColor.waitingBadge)
         case .reached:
@@ -346,6 +410,100 @@ struct EmergencyContactRow: View {
         case .failed:
             PillBadge(text: "실패", foreground: .white, background: KnockColor.danger)
         }
+    }
+}
+
+/// 통화 연결 중 점 세 개 애니메이션
+struct CallingDots: View {
+    var color: Color = KnockColor.primary
+    @State private var phase = 0
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(color)
+                    .frame(width: 5, height: 5)
+                    .scaleEffect(phase == i ? 1.3 : 0.7)
+                    .opacity(phase == i ? 1 : 0.4)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(320))
+                withAnimation(.easeInOut(duration: 0.3)) { phase = (phase + 1) % 3 }
+            }
+        }
+    }
+}
+
+// MARK: - 비상 연락 종료 (가족 응답)
+
+private struct EmergencyResolvedContent: View {
+    @Environment(AppState.self) private var appState
+    var responder: String
+    @Binding var showMap: Bool
+    @State private var ringScale: CGFloat = 0.6
+    @State private var checkShown = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                Circle().fill(KnockColor.cardTint).frame(width: 190, height: 190)
+                    .scaleEffect(ringScale)
+                Circle().stroke(KnockColor.primary.opacity(0.35), lineWidth: 2).frame(width: 220, height: 220)
+                    .scaleEffect(ringScale)
+                Image("mascot_happy").resizable().scaledToFit().frame(height: 150)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(KnockColor.primary)
+                    .background(Circle().fill(.white).padding(6))
+                    .scaleEffect(checkShown ? 1 : 0.2)
+                    .opacity(checkShown ? 1 : 0)
+                    .offset(x: 70, y: -60)
+            }
+            .frame(height: 230)
+            .padding(.top, 12)
+            .onAppear {
+                withAnimation(.spring(duration: 0.8, bounce: 0.35)) { ringScale = 1 }
+                withAnimation(.spring(duration: 0.6, bounce: 0.5).delay(0.35)) { checkShown = true }
+            }
+
+            VStack(spacing: 6) {
+                Text("\(responder)님이 응답했어요")
+                    .font(KnockFont.bold(28))
+                    .foregroundStyle(KnockColor.textPrimary)
+                PillBadge(text: "비상 연락 종료 · 오늘 상태 : 안전", icon: "checkmark.shield",
+                          font: KnockFont.medium(14), radius: 16, iconSize: 15)
+            }
+
+            SectionCard {
+                VStack(spacing: 10) {
+                    ForEach(appState.emergencyContacts) { c in
+                        HStack(spacing: 10) {
+                            Image(systemName: c.state == .reached ? "phone.fill.checkmark" : (c.state == .failed ? "phone.down.fill" : "phone"))
+                                .foregroundStyle(c.state == .reached ? KnockColor.primary : (c.state == .failed ? KnockColor.danger : KnockColor.textMuted))
+                                .frame(width: 22)
+                            Text(c.name).font(KnockFont.medium(15)).foregroundStyle(KnockColor.textPrimary)
+                            Spacer()
+                            Text(c.state == .reached ? "응답" : (c.state == .failed ? "부재중" : "대기"))
+                                .font(KnockFont.regular(13))
+                                .foregroundStyle(KnockColor.textSecondary)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+
+            PrimaryButton(title: "오늘 체크 완료로 돌아가기", style: .green) {
+                appState.checkIn()
+            }
+            .padding(.horizontal, 20)
+
+            FamilyMapCard(region: appState.user.region) { showMap = true }
+                .padding(.horizontal, 20)
+        }
+        .padding(.bottom, 12)
     }
 }
 

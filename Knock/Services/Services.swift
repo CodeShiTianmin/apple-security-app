@@ -113,6 +113,11 @@ enum PersistenceKey: String {
     case emergencyContacts
     case emergencyMessage
     case lastCheckInDate
+    case streakDays
+    case healthConnection
+    case notifications
+    case chat
+    case todayMood
 }
 
 struct Persistence {

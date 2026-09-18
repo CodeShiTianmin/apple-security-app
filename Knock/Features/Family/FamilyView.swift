@@ -39,9 +39,11 @@ struct FamilyView: View {
                                 AvatarView(asset: m.avatarAsset, size: 52, isOnline: m.isOnline, ring: .clear)
                             }
                             .buttonStyle(.plain)
+                            .transition(.scale.combined(with: .opacity))
                         }
                     }
                     .padding(.bottom, 12)
+                    .animation(.spring(duration: 0.45, bounce: 0.3), value: appState.members)
                 }
             }
             .padding(.horizontal, 24)
@@ -56,10 +58,14 @@ struct FamilyView: View {
                         .padding(.top, 40)
                 } else {
                     ForEach(appState.members) { m in
-                        Button { selectedMember = m } label: {
+                        Button {
+                            appState.clearUnread(for: m)
+                            selectedMember = m
+                        } label: {
                             FamilyMemberRow(member: m)
                         }
                         .buttonStyle(.plain)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                         Divider().padding(.horizontal, 20)
                     }
                 }
@@ -90,6 +96,7 @@ struct FamilyView: View {
             }
             .padding(.top, 8)
             .padding(.bottom, 16)
+            .animation(.spring(duration: 0.45), value: appState.members)
         }
         .sheet(item: $selectedMember) { m in FamilyMemberDetailView(member: m) }
         .sheet(isPresented: $showInvite) { InviteFamilyView() }
@@ -110,14 +117,23 @@ struct FamilyMemberRow: View {
                     Spacer()
                     if member.unreadCount > 0 {
                         PillBadge(text: "\(member.unreadCount)", foreground: KnockColor.dangerText, background: KnockColor.dangerSoft)
+                            .transition(.scale.combined(with: .opacity))
                     }
                 }
-                Text(member.activityTitle).font(KnockFont.medium(12)).foregroundStyle(KnockColor.textSecondary)
+                HStack(spacing: 6) {
+                    if member.isOnline {
+                        Circle().fill(KnockColor.online).frame(width: 6, height: 6)
+                    }
+                    Text(member.activityTitle).font(KnockFont.medium(12)).foregroundStyle(KnockColor.textSecondary)
+                        .contentTransition(.opacity)
+                }
                 if let detail = member.activityDetail {
                     Text(detail).font(KnockFont.regular(14)).foregroundStyle(KnockColor.textSecondary).lineSpacing(2)
+                        .contentTransition(.opacity)
                 }
             }
         }
+        .animation(.spring(duration: 0.4), value: member)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .contentShape(Rectangle())
@@ -132,6 +148,7 @@ struct FamilyMemberDetailView: View {
     var member: FamilyMember
     @State private var segment: Segment = .calendar
     @State private var month = MockData.date(2026, 10, 1)
+    @State private var greeted = false
 
     enum Segment: Hashable { case calendar, log }
 
@@ -220,8 +237,8 @@ struct FamilyMemberDetailView: View {
                     .background(KnockColor.cardTint, in: RoundedRectangle(cornerRadius: 18))
 
                     VStack(spacing: 10) {
-                        miniCard(title: "평균 수면 시간", value: "\(format(member.avgSleepHours))h", note: member.sleepQuality)
-                        miniCard(title: "평균 심박수", value: "\(member.avgHeartRate) bpm", note: nil)
+                        miniCard(title: "평균 수면 시간", value: "\(format(member.avgSleepHours))시간", note: member.sleepQuality)
+                        miniCard(title: "평균 심박수", value: "\(member.avgHeartRate)회/분", note: nil)
                     }
                 }
                 .frame(height: 150)
@@ -239,19 +256,22 @@ struct FamilyMemberDetailView: View {
 
                 HStack(spacing: 12) {
                     Button {
-                        if let url = URL(string: "tel://\(appState.emergencyContacts.first?.phone.filter(\.isNumber) ?? "")") {
+                        if let url = URL(string: "tel://\(member.phone.filter(\.isNumber))") {
                             UIApplication.shared.open(url)
                         }
                     } label: {
-                        Label("전화하기", systemImage: "phone.fill")
+                        Label("전화하기 \(member.phone)", systemImage: "phone.fill")
                     }
                     .buttonStyle(.borderedProminent).tint(KnockColor.primary)
                     Button {
-                        appState.chat.append(ChatMessage(senderName: "나", isMine: true, text: "\(member.name), 오늘 체크인 잊지 마세요 👋", date: .now))
+                        greeted = true
+                        appState.sendGreeting(to: member)
                     } label: {
-                        Label("안부 보내기", systemImage: "hand.wave.fill")
+                        Label(greeted ? "보냈어요" : "안부 보내기", systemImage: greeted ? "checkmark" : "hand.wave.fill")
+                            .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.bordered).tint(KnockColor.primaryDark)
+                    .disabled(greeted)
                 }
                 .font(KnockFont.medium(14))
                 .padding(.horizontal, 16)
@@ -282,7 +302,7 @@ struct FamilyMemberDetailView: View {
 struct CheckInCalendarGrid: View {
     var monthStart: Date
     var streakDays: Int
-    private let symbols = ["M", "T", "W", "T", "F", "S", "S"]
+    private let symbols = ["월", "화", "수", "목", "금", "토", "일"]
 
     var body: some View {
         let cal = Calendar.current

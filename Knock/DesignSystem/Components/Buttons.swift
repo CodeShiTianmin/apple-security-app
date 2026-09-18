@@ -94,7 +94,7 @@ struct SocialLoginButton: View {
         case .kakao: return "카카오로 계속하기"
         case .naver: return "네이버로 계속하기"
         case .facebook: return "페이스북으로 계속하기"
-        case .apple: return "Apple로 계속하기"
+        case .apple: return "애플로 계속하기"
         case .phone: return "휴대폰번호로 계속하기"
         }
     }
