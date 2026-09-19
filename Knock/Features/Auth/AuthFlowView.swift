@@ -7,7 +7,6 @@ enum AuthRoute: Hashable {
     case emailVerify
     case userInfo
     case password
-    case emergencyContact
     case emergencyMessage
     case signupComplete
     case findID
@@ -85,8 +84,7 @@ struct AuthFlowView: View {
         case .emailVerify: EmailVerifyView(path: $path)
         case .userInfo: UserInfoView(path: $path)
         case .password: PasswordSetupView(path: $path)
-        case .emergencyContact: EmergencyContactRegisterView(path: $path)
-        case .emergencyMessage: EmergencyMessageEditView(mode: .signup, path: $path)
+        case .emergencyMessage: EmergencyMessageEditView(mode: .setup, path: $path)
         case .signupComplete: SignupCompleteView(path: $path)
         case .findID: FindIDStartView(path: $path)
         case .findIDPhone: PhoneInputView(mode: .findID, path: $path)
@@ -101,6 +99,36 @@ struct AuthFlowView: View {
         case .phoneLogin: PhoneInputView(mode: .login, path: $path)
         case .phoneLoginCode: PhoneCodeView(mode: .login, path: $path)
         }
+    }
+}
+
+/// 로그인 직후 비상 연락처가 없을 때 보이는 등록 플로우 (연락처 → 비상 문자)
+struct EmergencySetupFlowView: View {
+    @State private var path: [AuthRoute] = []
+    @State private var draft = SignupDraft()
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            EmergencyContactRegisterView(path: $path)
+                .navigationDestination(for: AuthRoute.self) { route in
+                    Group {
+                        if route == .emergencyMessage {
+                            EmergencyMessageEditView(mode: .setup, path: $path)
+                        }
+                    }
+                    .navigationBarBackButtonHidden()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button { path.removeLast() } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundStyle(KnockColor.textNeutral)
+                            }
+                        }
+                    }
+                }
+        }
+        .environment(draft)
     }
 }
 

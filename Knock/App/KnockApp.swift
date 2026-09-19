@@ -29,6 +29,9 @@ struct RootView: View {
             case .auth:
                 AuthFlowView()
                     .transition(.move(edge: .trailing).combined(with: .opacity))
+            case .emergencySetup:
+                EmergencySetupFlowView()
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             case .main:
                 MainTabView()
                     .transition(.opacity)

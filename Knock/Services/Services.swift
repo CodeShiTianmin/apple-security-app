@@ -112,6 +112,7 @@ enum PersistenceKey: String {
     case checkInSettings
     case emergencyContacts
     case emergencyMessage
+    case hasSetEmergencyContacts
     case lastCheckInDate
     case streakDays
     case healthConnection

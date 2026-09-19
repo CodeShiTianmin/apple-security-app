@@ -6,6 +6,8 @@ enum RootRoute: Equatable {
     case splash
     case onboarding
     case auth
+    /// 로그인 직후, 비상 연락처가 아직 등록되지 않은 경우
+    case emergencySetup
     case main
 }
 
@@ -74,6 +76,7 @@ final class AppState {
     var settings = CheckInSettings()
     var emergencyContacts: [EmergencyContact] = MockData.emergencyContacts
     var emergencyMessage: String = MockData.emergencyMessage
+    var hasSetEmergencyContacts = false
     var emergencyTimer: Task<Void, Never>?
     /// 비상 연락 중 다음 연락 시도 예정 시각
     var nextAttemptDate: Date?
@@ -116,6 +119,7 @@ final class AppState {
         if let saved = persistence.load(CheckInSettings.self, .checkInSettings) { settings = saved }
         if let saved = persistence.load([EmergencyContact].self, .emergencyContacts) { emergencyContacts = saved }
         if let saved = persistence.load(String.self, .emergencyMessage) { emergencyMessage = saved }
+        hasSetEmergencyContacts = persistence.bool(.hasSetEmergencyContacts)
         if let saved = persistence.load(Int.self, .streakDays) { streakDays = saved }
         if let saved = persistence.load([AppNotification].self, .notifications) { notifications = saved }
         if let saved = persistence.load([ChatMessage].self, .chat) { chat = saved }
@@ -151,8 +155,29 @@ final class AppState {
         isLoggedIn = true
         persistence.set(true, .isLoggedIn)
         persistence.save(profile, .profile)
-        route = .main
         tab = .home
+        if hasSetEmergencyContacts {
+            enterMain()
+        } else {
+            route = .emergencySetup
+        }
+    }
+
+    /// 로그인 후 비상 연락처 등록 완료
+    func completeEmergencySetup(contacts: [EmergencyContact], message: String) {
+        if !contacts.isEmpty { emergencyContacts = contacts }
+        emergencyMessage = message
+        saveEmergency()
+        enterMain()
+    }
+
+    /// 비상 연락처 등록을 건너뜀 (다음 로그인 시 다시 안내)
+    func skipEmergencySetup() {
+        enterMain()
+    }
+
+    private func enterMain() {
+        route = .main
         startLiveFamilyUpdates()
     }
 
@@ -172,6 +197,11 @@ final class AppState {
         persistence.remove(.hasSeenOnboarding)
         persistence.remove(.checkInSettings)
         persistence.remove(.emergencyContacts)
+        persistence.remove(.emergencyMessage)
+        persistence.remove(.hasSetEmergencyContacts)
+        hasSetEmergencyContacts = false
+        emergencyContacts = MockData.emergencyContacts
+        emergencyMessage = MockData.emergencyMessage
         persistence.remove(.lastCheckInDate)
         persistence.remove(.streakDays)
         persistence.remove(.notifications)
@@ -189,6 +219,10 @@ final class AppState {
     func saveEmergency() {
         persistence.save(emergencyContacts, .emergencyContacts)
         persistence.save(emergencyMessage, .emergencyMessage)
+        if !emergencyContacts.isEmpty {
+            hasSetEmergencyContacts = true
+            persistence.set(true, .hasSetEmergencyContacts)
+        }
     }
 
     // MARK: - Toast
