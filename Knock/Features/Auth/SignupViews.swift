@@ -179,7 +179,7 @@ struct PasswordSetupView: View {
         .sheet(isPresented: $showTerms) {
             TermsSheet {
                 showTerms = false
-                path.append(.emergencyContact)
+                path.append(.signupComplete)
             }
             .presentationDetents([.height(400)])
             .presentationCornerRadius(28)
@@ -309,8 +309,9 @@ struct TermDetailView: View {
     }
 }
 
-/// 비상 연락처 등록
+/// 비상 연락처 등록 (로그인 직후)
 struct EmergencyContactRegisterView: View {
+    @Environment(AppState.self) private var appState
     @Environment(SignupDraft.self) private var draft
     @Binding var path: [AuthRoute]
     @State private var contact = ""
@@ -321,7 +322,7 @@ struct EmergencyContactRegisterView: View {
 
     var body: some View {
         @Bindable var draft = draft
-        AuthScaffold(title: "비상 연락처 등록", subtitle: "이메일나 전화번호를 입력해주세요") {
+        AuthScaffold(title: "비상 연락처 등록", subtitle: "위험 상황 시 연락할 가족의 이메일이나 전화번호를 입력해주세요", topSpacing: 40) {
             VStack(alignment: .leading, spacing: 10) {
                 FieldLabel(text: "이메일 / 전화번호")
                 KnockTextField(placeholder: "입력", text: $contact, keyboard: .emailAddress)
@@ -377,8 +378,13 @@ struct EmergencyContactRegisterView: View {
                 }
             }
         } footer: {
-            PrimaryButton(title: draft.contacts.isEmpty ? "나중에 등록하기" : "다음") {
-                path.append(.emergencyMessage)
+            VStack(spacing: 12) {
+                PrimaryButton(title: "다음", isEnabled: !draft.contacts.isEmpty) {
+                    path.append(.emergencyMessage)
+                }
+                Button("나중에 등록하기") { appState.skipEmergencySetup() }
+                    .font(KnockFont.medium(14))
+                    .foregroundStyle(KnockColor.textGray)
             }
         }
         .confirmationDialog("관계 선택", isPresented: $showRelationPicker, titleVisibility: .visible) {
@@ -387,7 +393,7 @@ struct EmergencyContactRegisterView: View {
     }
 }
 
-enum EmergencyMessageMode { case signup, settings }
+enum EmergencyMessageMode { case setup, settings }
 
 /// 비상 연락문자 편집
 struct EmergencyMessageEditView: View {
@@ -423,7 +429,7 @@ struct EmergencyMessageEditView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
 
                 PrimaryButton(title: saved ? "저장됨" : "저장", style: .outline) {
-                    if mode == .signup { draft.emergencyMessage = text } else {
+                    if mode == .setup { draft.emergencyMessage = text } else {
                         appState.emergencyMessage = text
                         appState.saveEmergency()
                     }
@@ -432,10 +438,10 @@ struct EmergencyMessageEditView: View {
                 .padding(.top, 60)
             }
         } footer: {
-            PrimaryButton(title: mode == .signup ? "다음" : "완료") {
-                if mode == .signup {
+            PrimaryButton(title: "완료") {
+                if mode == .setup {
                     draft.emergencyMessage = text
-                    path.append(.signupComplete)
+                    appState.completeEmergencySetup(contacts: draft.contacts, message: text)
                 } else {
                     appState.emergencyMessage = text
                     appState.saveEmergency()
@@ -444,7 +450,7 @@ struct EmergencyMessageEditView: View {
             }
         }
         .onAppear {
-            text = mode == .signup ? draft.emergencyMessage : appState.emergencyMessage
+            text = mode == .setup ? draft.emergencyMessage : appState.emergencyMessage
         }
         .onChange(of: text) { _, new in
             if new.count > 120 { text = String(new.prefix(120)) }
@@ -475,9 +481,6 @@ struct SignupCompleteView: View {
                     defer { loading = false }
                     let profile = draft.buildProfile()
                     let user = (try? await appState.auth.register(profile: profile, password: draft.password)) ?? profile
-                    if !draft.contacts.isEmpty { appState.emergencyContacts = draft.contacts }
-                    appState.emergencyMessage = draft.emergencyMessage
-                    appState.saveEmergency()
                     appState.completeLogin(user)
                 }
             }
