@@ -59,6 +59,7 @@ struct HomeView: View {
                     .background(.white.opacity(0.9), in: Circle())
                     .knockShadow(radius: 6, y: 2)
             }
+            .accessibilityIdentifier("home.demoMenu")
             .padding(.trailing, 16)
             .padding(.bottom, 8)
         }
@@ -78,6 +79,7 @@ private struct CheckedInContent: View {
             Button { showCalendar = true } label: {
                 WeeklyCalendarCard()
             }
+            .accessibilityIdentifier("home.calendar")
             .buttonStyle(.pressable)
             .padding(.horizontal, 20)
             .padding(.top, 20)
@@ -305,6 +307,7 @@ private struct CheckPendingContent: View {
                     }
             }
             .buttonStyle(.pressable)
+            .accessibilityIdentifier("home.checkButton")
             .padding(.horizontal, 20)
             .onAppear { glow = true }
 

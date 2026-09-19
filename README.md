@@ -15,6 +15,8 @@ Figma 시안(`제목 없음 9.15`)을 SwiftUI로 구현했습니다.
 
 커맨드라인 빌드: `./scripts/build_sim.sh` (Xcode 27 RC가 설치되어 있으면 자동 사용, `SIM_DEVICE` / `SIM_OS` 로 대상 변경)
 
+데모 영상 자동 녹화: `./scripts/record_demo.sh [출력.mp4]` — 시뮬레이터 녹화를 켜고 `KnockUITests/DemoRecordingUITests` 가 온보딩 → 로그인 → 알림 → 체크인 → 비상 연락 → 가족 초대/채팅 → 건강/호흡 운동 → 통계까지 자동으로 조작합니다. 앱은 `--demo-reset` 인자로 실행되어 저장된 상태가 초기화됩니다. (ffmpeg 가 있으면 앞뒤 여백을 잘라 mp4 로 정리)
+
 외부 의존성은 없습니다. 소스는 `Knock/` 폴더 기준으로 Xcode가 자동 동기화합니다.
 
 ## 데모 계정 / 동작

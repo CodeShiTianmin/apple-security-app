@@ -192,6 +192,7 @@ struct SegmentedPill<T: Hashable>: View {
                         }
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("segment.\(item.1)")
             }
         }
         .padding(4)
@@ -210,12 +211,14 @@ struct DateNavigator: View {
             Button(action: onPrevious) {
                 Image(systemName: "chevron.left").font(.system(size: 16, weight: .medium)).frame(width: 20, height: 20)
             }
+            .accessibilityIdentifier("dateNav.previous")
             Spacer()
             Text(title).font(KnockFont.medium(16))
             Spacer()
             Button(action: onNext) {
                 Image(systemName: "chevron.right").font(.system(size: 16, weight: .medium)).frame(width: 20, height: 20)
             }
+            .accessibilityIdentifier("dateNav.next")
         }
         .foregroundStyle(KnockColor.primary)
         .padding(.horizontal, 24)

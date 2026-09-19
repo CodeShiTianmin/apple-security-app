@@ -34,6 +34,7 @@ struct FamilyView: View {
                                 }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("family.invite")
                         ForEach(appState.members) { m in
                             Button { selectedMember = m } label: {
                                 AvatarView(asset: m.avatarAsset, size: 52, isOnline: m.isOnline, ring: .clear)
@@ -65,6 +66,7 @@ struct FamilyView: View {
                             FamilyMemberRow(member: m)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("family.member.\(m.name)")
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         Divider().padding(.horizontal, 20)
                     }
@@ -82,11 +84,13 @@ struct FamilyView: View {
                             .font(.system(size: 20))
                             .frame(width: 24, height: 24)
                     }
+                    .accessibilityIdentifier("family.chat")
                     Button { showActivities = true } label: {
                         Image(systemName: "person.2")
                             .font(.system(size: 20))
                             .frame(width: 24, height: 24)
                     }
+                    .accessibilityIdentifier("family.activities")
                 }
                 .foregroundStyle(KnockColor.primary)
                 .padding(.horizontal, 16)
@@ -161,6 +165,7 @@ struct FamilyMemberDetailView: View {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
                     }
+                    .accessibilityIdentifier("member.close")
                 }
                 .padding(.horizontal, 20)
                 AvatarView(asset: member.avatarAsset, size: 72, ring: .white)
@@ -272,6 +277,7 @@ struct FamilyMemberDetailView: View {
                     }
                     .buttonStyle(.bordered).tint(KnockColor.primaryDark)
                     .disabled(greeted)
+                    .accessibilityIdentifier("member.greet")
                 }
                 .font(KnockFont.medium(14))
                 .padding(.horizontal, 16)

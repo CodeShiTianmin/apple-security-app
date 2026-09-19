@@ -11,14 +11,17 @@ struct DetailDateBar: View {
     var body: some View {
         HStack {
             CircleIconButton(systemImage: "chevron.left", action: onBack)
+                .accessibilityIdentifier("detail.back")
             Spacer()
             HStack(spacing: 14) {
                 Button(action: onPrevious) { Image(systemName: "chevron.left").font(.system(size: 12)) }
+                    .accessibilityIdentifier("detail.previous")
                 Text(date.slashFormatted)
                     .font(KnockFont.medium(20))
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.25), value: date)
                 Button(action: onNext) { Image(systemName: "chevron.right").font(.system(size: 12)) }
+                    .accessibilityIdentifier("detail.next")
             }
             .foregroundStyle(KnockColor.textPrimary)
             Spacer()
@@ -406,6 +409,7 @@ struct StressDetailView: View {
                             .font(KnockFont.regular(13)).foregroundStyle(KnockColor.textSecondary).lineSpacing(3)
                         HStack(spacing: 12) {
                             PrimaryButton(title: "호흡 운동 시작", style: .green) { path.append(.breathing) }
+                                .accessibilityIdentifier("stress.startBreathing")
                             Button("주간 통계 보기") { appState.tab = .stats }
                                 .font(KnockFont.medium(14)).foregroundStyle(KnockColor.primary)
                         }

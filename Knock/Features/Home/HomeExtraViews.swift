@@ -45,6 +45,7 @@ struct MoodPickerSheet: View {
                         .knockShadow(radius: isSelected ? 14 : 6, y: isSelected ? 6 : 2)
                     }
                     .buttonStyle(.pressable)
+                    .accessibilityIdentifier("mood.\(mood.rawValue)")
                     .offset(y: appeared ? 0 : 40)
                     .opacity(appeared ? 1 : 0)
                     .animation(.spring(duration: 0.5, bounce: 0.3).delay(Double(i) * 0.06), value: appeared)
@@ -56,6 +57,7 @@ struct MoodPickerSheet: View {
                           isEnabled: selected != nil, style: .filled) {
                 if let selected { onConfirm(selected) }
             }
+            .accessibilityIdentifier("mood.confirm")
             .padding(.horizontal, 20)
 
             Spacer(minLength: 0)
@@ -288,6 +290,7 @@ struct NotificationsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("모두 읽음") { appState.markAllRead() }
+                        .accessibilityIdentifier("notifications.readAll")
                         .disabled(appState.unreadNotifications == 0)
                 }
                 ToolbarItem(placement: .topBarTrailing) { Button("닫기") { dismiss() } }
