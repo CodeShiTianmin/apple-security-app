@@ -126,9 +126,10 @@ struct ChatMessage: Identifiable, Codable, Equatable {
 }
 
 /// 초대 코드로 참여할 수 있는 지인 (백엔드 연동 전 목업)
-struct InviteCandidate: Equatable {
+struct InviteCandidate: Equatable, Identifiable {
     var code: String
     var member: FamilyMember
+    var id: String { code }
 }
 
 // MARK: - Health

@@ -78,6 +78,7 @@ struct HealthStatusView: View {
                         .knockShadow()
                 }
                 .buttonStyle(.pressable)
+                .accessibilityIdentifier("health.overview")
 
                 if !isGood {
                     Text("알람 뜨는중.....")
@@ -103,6 +104,7 @@ struct HealthStatusView: View {
                         .knockShadow(radius: 8, y: 3)
                     }
                     .buttonStyle(.pressable)
+                    .accessibilityIdentifier("health.breathing")
                 }
                 .animation(.spring(duration: 0.4), value: appState.healthConnection)
                 .padding(.top, isGood ? 4 : 0)
@@ -145,6 +147,7 @@ struct HealthOverviewView: View {
                 VStack(spacing: 10) {
                     HStack {
                         CircleIconButton(systemImage: "chevron.left", size: 36) { path.removeLast() }
+                            .accessibilityIdentifier("health.back")
                         Spacer()
                         Text("나이팅게일 점수").font(KnockFont.medium(14)).foregroundStyle(KnockColor.textPrimary)
                         Spacer()
@@ -189,7 +192,9 @@ struct HealthOverviewView: View {
                     HealthMetricCard(icon: "heart", title: appState.healthConnection == .connected ? "심박수 · 실시간" : "심박수",
                                      value: "\(appState.healthConnection == .connected ? appState.liveHeartRate : overview.heartRate)회/분",
                                      live: appState.healthConnection == .connected) { path.append(.heartRate) }
+                        .accessibilityIdentifier("health.heartRate")
                     HealthMetricCard(icon: "moon", title: "수면", value: "\(format(overview.sleepHoursPerDay)) 시간/하루") { path.append(.sleep) }
+                        .accessibilityIdentifier("health.sleep")
                 }
                 .padding(.horizontal, 16)
 
@@ -220,6 +225,7 @@ struct HealthOverviewView: View {
                 HStack(spacing: 12) {
                     WatchTile(face: .relax) { path.append(.stress) }
                     WatchTile(face: .stress) { path.append(.stress) }
+                        .accessibilityIdentifier("health.stress")
                 }
                 .padding(.horizontal, 16)
 
@@ -435,6 +441,7 @@ struct HealthKitConnectCard: View {
                     .background(state == .connected ? KnockColor.sheet : KnockColor.primary, in: Capsule())
             }
             .disabled(state == .connecting)
+            .accessibilityIdentifier("health.connect")
         }
         .padding(16)
         .background(.white, in: RoundedRectangle(cornerRadius: 18))

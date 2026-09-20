@@ -39,6 +39,7 @@ struct BreathingExerciseView: View {
                         .frame(width: 36, height: 36)
                         .background(.white.opacity(0.18), in: Circle())
                 }
+                .accessibilityIdentifier("breathing.back")
                 Spacer()
                 Text("호흡 운동").font(KnockFont.medium(18)).foregroundStyle(.white)
                 Spacer()
@@ -105,11 +106,14 @@ struct BreathingExerciseView: View {
                     switch phase {
                     case .ready:
                         PrimaryButton(title: "시작하기", style: .filled) { start() }
+                            .accessibilityIdentifier("breathing.start")
                     case .inhale, .exhale:
                         PrimaryButton(title: "그만하기", style: .outline) { stop() }
+                            .accessibilityIdentifier("breathing.stop")
                     case .done:
                         PrimaryButton(title: "다시 하기", style: .filled) { start() }
                         Button("건강 화면으로") { path.removeAll() }
+                            .accessibilityIdentifier("breathing.done")
                             .font(KnockFont.medium(14)).foregroundStyle(KnockColor.primary)
                     }
                 }
